@@ -1331,6 +1331,12 @@
       var silenceTimer = null;
       var wantListen = false;
       var lastSrError = null;
+      /* Snapshot trackers for onresult: text of final results from an earlier
+         results list (only used if the browser resets its list mid-session)
+         plus the previous event's final count/text for detecting that reset. */
+      var srFinalBase = "";
+      var srLastFinalCount = 0;
+      var srLastFinalText = "";
 
       function clearSilenceTimer() {
         if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
@@ -1345,6 +1351,9 @@
         stopSpeaking();
         state.finalTranscript = "";
         state.interimTranscript = "";
+        srFinalBase = "";
+        srLastFinalCount = 0;
+        srLastFinalText = "";
         try {
           recognition = new SR();
         } catch (e) {
@@ -1359,15 +1368,37 @@
         lastSrError = null;
         recognition.onresult = function (ev) {
           lastSrError = null;
-          var finalPart = "", interimPart = "";
-          for (var i = ev.resultIndex; i < ev.results.length; i++) {
+          /* Rebuild the transcript as an absolute snapshot of ev.results on
+             every event — never append deltas. Some browsers (notably Chrome
+             on Android) re-deliver already-final results in later events and
+             report an unreliable resultIndex, so the old incremental +=
+             counted each segment many times, producing stuttered text like
+             "currentlycurrentlycurrently Icurrently I never looking…".
+             A snapshot is idempotent: each result slot counts exactly once,
+             however often the event fires. */
+          var finalParts = [], interimParts = [];
+          for (var i = 0; i < ev.results.length; i++) {
             var r = ev.results[i];
-            if (r.isFinal) finalPart += r[0].transcript;
-            else interimPart += r[0].transcript;
+            var t = (r[0] && r[0].transcript) || "";
+            if (!t) continue;
+            if (r.isFinal) finalParts.push(t);
+            else interimParts.push(t);
           }
-          if (finalPart) state.finalTranscript += finalPart;
-          state.interimTranscript = interimPart;
-          textInput.value = (state.finalTranscript + interimPart).trim();
+          var snapFinal = finalParts.join(" ").replace(/\s+/g, " ").trim();
+          if (finalParts.length < srLastFinalCount ||
+              (snapFinal && srLastFinalText && snapFinal.indexOf(srLastFinalText) !== 0)) {
+            /* The results list restarted mid-session (it shrank, or its finals
+               no longer extend the previous snapshot): commit the previous
+               snapshot's finals so earlier speech is neither lost nor
+               counted twice. Normal growth always extends the previous
+               finals, so this never fires mid-utterance. */
+            srFinalBase = (srFinalBase + " " + srLastFinalText).replace(/\s+/g, " ").trim();
+          }
+          srLastFinalCount = finalParts.length;
+          srLastFinalText = snapFinal;
+          state.finalTranscript = (srFinalBase + " " + snapFinal).replace(/\s+/g, " ").trim();
+          state.interimTranscript = interimParts.join(" ").replace(/\s+/g, " ").trim();
+          textInput.value = (state.finalTranscript + " " + state.interimTranscript).trim();
           sendBtn.disabled = !textInput.value.trim();
           armSilenceTimer();
         };
@@ -1431,6 +1462,9 @@
         var text = (state.finalTranscript + " " + state.interimTranscript).trim() || textInput.value.trim();
         state.finalTranscript = "";
         state.interimTranscript = "";
+        srFinalBase = "";
+        srLastFinalCount = 0;
+        srLastFinalText = "";
         refreshControls();
         if (shouldSend && text) {
           textInput.value = "";
@@ -1446,7 +1480,10 @@
       }
       var mediaRecorder = null;
       var mediaStream = null;
-      var recordChunks = [];
+      /* One object per recording: its own chunk list + a consumed flag, so a
+         stale onstop from a previous recorder can never transcribe (or send)
+         the same audio twice or mix chunks from two recordings. */
+      var recordSession = null;
       function pickRecorderMime() {
         if (!window.MediaRecorder) return "";
         var options = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"];
@@ -1474,17 +1511,23 @@
           showBanner("error", "Izin mikrofon ditolak. Cara mengizinkan: klik ikon gembok / tune di address bar Chrome → Site settings → Microphone → Allow, lalu muat ulang halaman ini.");
           return;
         }
-        recordChunks = [];
+        var session = { chunks: [], mimeType: "", consumed: false };
+        recordSession = session;
         var mime = pickRecorderMime();
         try {
           mediaRecorder = mime ? new MediaRecorder(mediaStream, { mimeType: mime }) : new MediaRecorder(mediaStream);
         } catch (e) {
+          recordSession = null;
           stopRecordStream();
           showBanner("error", "Perekam audio gagal dimulai di browser ini. Tetap latihan dengan mengetik di kolom bawah.");
           return;
         }
-        mediaRecorder.ondataavailable = function (ev) { if (ev.data && ev.data.size) recordChunks.push(ev.data); };
-        mediaRecorder.onstop = onRecordingStopped;
+        session.mimeType = mediaRecorder.mimeType || mime || "audio/webm";
+        /* No timeslice: data arrives as one chunk when stop() is called, so
+           there are no overlapping slices to merge. The closures capture THIS
+           session, so its audio is assembled from its own chunks only. */
+        mediaRecorder.ondataavailable = function (ev) { if (ev.data && ev.data.size) session.chunks.push(ev.data); };
+        mediaRecorder.onstop = function () { onRecordingStopped(session); };
         mediaRecorder.start();
         state.recording = true;
         refreshControls();
@@ -1492,12 +1535,20 @@
       function stopRecording() {
         if (!state.recording || !mediaRecorder) return;
         state.recording = false;
-        try { mediaRecorder.stop(); } catch (e) { stopRecordStream(); refreshControls(); }
+        try { mediaRecorder.stop(); } catch (e) {
+          /* stop() failed: consume the session so no late onstop transcribes it */
+          if (recordSession) { recordSession.consumed = true; recordSession = null; }
+          mediaRecorder = null;
+          stopRecordStream();
+        }
         refreshControls();
       }
       function cancelRecording() {
         if (!state.recording) return;
         state.recording = false;
+        /* Consume the session so its pending onstop discards the audio
+           instead of transcribing a recording the user threw away. */
+        if (recordSession) { recordSession.consumed = true; recordSession = null; }
         if (mediaRecorder) {
           mediaRecorder.onstop = null;
           try { mediaRecorder.stop(); } catch (e) { /* ignore */ }
@@ -1506,12 +1557,18 @@
         stopRecordStream();
         refreshControls();
       }
-      function onRecordingStopped() {
-        var mime = (mediaRecorder && mediaRecorder.mimeType) || "audio/webm";
+      function onRecordingStopped(session) {
+        /* Exactly-once guard: the first onstop consumes the session; any
+           duplicate or stale stop event for it returns without transcribing
+           or sending anything again. */
+        if (!session || session.consumed) { stopRecordStream(); return; }
+        session.consumed = true;
+        if (recordSession === session) recordSession = null;
+        var mime = session.mimeType || "audio/webm";
         mediaRecorder = null;
         stopRecordStream();
-        var blob = new Blob(recordChunks, { type: mime });
-        recordChunks = [];
+        var blob = new Blob(session.chunks, { type: mime });
+        session.chunks = [];
         refreshControls();
         if (!blob.size) {
           showBanner("warn", "Rekamannya kosong — coba bicara sedikit lebih lama sebelum ketuk berhenti.");
