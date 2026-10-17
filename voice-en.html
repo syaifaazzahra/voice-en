@@ -1,0 +1,1927 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <link rel="icon" href="data:," />
+    <title>English Voice Chat — Latihan Ngobrol Inggris pakai Suara</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #100e1a;
+        --bg-deep: #0b0913;
+        --surface: #1a1729;
+        --surface-2: #221e38;
+        --border: #322c52;
+        --border-soft: #282342;
+        --text: #eceaf6;
+        --text-dim: #a49ec4;
+        --text-faint: #6f6892;
+        --accent: #7c6ef7;
+        --accent-bright: #9b8afb;
+        --accent-ink: #ffffff;
+        --user-bubble: #7c6ef7;
+        --danger: #e5534b;
+        --danger-dim: #ff7a72;
+        --warn-bg: #2b2113;
+        --warn-border: #6b5320;
+        --warn-text: #f0c569;
+        --ok: #35c48d;
+        --radius: 16px;
+      }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; }
+      body {
+        margin: 0;
+        background: var(--bg-deep);
+        color: var(--text);
+        font-family: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+        font-size: 16px;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+      }
+      button { font: inherit; cursor: pointer; }
+      input, select, textarea { font: inherit; }
+      .hidden { display: none !important; }
+
+      /* ---------- layout shell ---------- */
+      .shell {
+        max-width: 780px;
+        margin: 0 auto;
+        height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        background: var(--bg);
+        border-left: 1px solid var(--border-soft);
+        border-right: 1px solid var(--border-soft);
+      }
+
+      /* ---------- header ---------- */
+      header {
+        padding: 12px 14px 10px;
+        border-bottom: 1px solid var(--border-soft);
+        background: var(--surface);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        flex: none;
+      }
+      .header-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .mode-switch {
+        display: flex;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 3px;
+        gap: 2px;
+      }
+      .mode-switch button {
+        border: 0;
+        background: transparent;
+        color: var(--text-dim);
+        padding: 6px 14px;
+        border-radius: 999px;
+        font-weight: 600;
+        font-size: 0.86rem;
+        transition: background 0.15s, color 0.15s;
+      }
+      .mode-switch button.active {
+        background: var(--accent);
+        color: var(--accent-ink);
+      }
+      .mode-switch button:disabled { opacity: 0.45; cursor: default; }
+      .timer-chip {
+        margin-left: auto;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--text-dim);
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 5px 12px;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+      }
+      .timer-chip .dot {
+        width: 8px; height: 8px; border-radius: 50%;
+        background: var(--text-faint);
+      }
+      .timer-chip.live .dot { background: var(--danger); animation: blink 1.6s infinite; }
+      .ai-voice-chip {
+        font-size: 0.74rem;
+        font-weight: 700;
+        color: var(--accent-bright);
+        background: var(--surface-2);
+        border: 1px solid var(--accent);
+        border-radius: 999px;
+        padding: 4px 10px;
+      }
+      @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
+      .icon-btn {
+        width: 38px; height: 38px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: var(--bg);
+        color: var(--text-dim);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: color 0.15s, border-color 0.15s, background 0.15s;
+      }
+      .icon-btn svg { width: 19px; height: 19px; }
+      .icon-btn.on { color: var(--accent-bright); border-color: var(--accent); background: var(--surface-2); }
+      .icon-btn:hover { color: var(--text); }
+      .toggle-row {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        flex-wrap: wrap;
+      }
+      .toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: none;
+        border: 0;
+        color: var(--text-dim);
+        font-size: 0.85rem;
+        font-weight: 600;
+        padding: 2px 0;
+      }
+      .toggle .track {
+        width: 38px; height: 22px;
+        border-radius: 999px;
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        position: relative;
+        transition: background 0.15s;
+        flex: none;
+      }
+      .toggle .track::after {
+        content: "";
+        position: absolute;
+        top: 2px; left: 2px;
+        width: 16px; height: 16px;
+        border-radius: 50%;
+        background: var(--text-dim);
+        transition: transform 0.15s, background 0.15s;
+      }
+      .toggle[aria-pressed="true"] .track { background: var(--accent); border-color: var(--accent); }
+      .toggle[aria-pressed="true"] .track::after { transform: translateX(16px); background: #fff; }
+      .toggle[aria-pressed="true"] { color: var(--text); }
+      .end-btn {
+        margin-left: auto;
+        border: 1px solid var(--danger);
+        color: var(--danger-dim);
+        background: transparent;
+        border-radius: 999px;
+        padding: 6px 14px;
+        font-size: 0.85rem;
+        font-weight: 700;
+      }
+      .end-btn:hover:not(:disabled) { background: rgba(229, 83, 75, 0.12); }
+      .end-btn:disabled { opacity: 0.4; cursor: default; }
+
+      /* ---------- banner ---------- */
+      .banner {
+        margin: 12px 14px 0;
+        border-radius: 12px;
+        padding: 11px 14px;
+        font-size: 0.9rem;
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+      }
+      .banner.error { background: #2c1518; border: 1px solid #6e2a30; color: #ffb4ae; }
+      .banner.warn { background: var(--warn-bg); border: 1px solid var(--warn-border); color: var(--warn-text); }
+      .banner button {
+        margin-left: auto;
+        background: none; border: 0; color: inherit;
+        font-size: 1.05rem; line-height: 1; padding: 2px 4px; flex: none;
+      }
+
+      /* ---------- messages ---------- */
+      #messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 18px 14px 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        scroll-behavior: smooth;
+      }
+      .divider {
+        align-self: center;
+        font-size: 0.78rem;
+        color: var(--text-faint);
+        background: var(--surface);
+        border: 1px solid var(--border-soft);
+        padding: 4px 12px;
+        border-radius: 999px;
+        text-align: center;
+      }
+      .msg {
+        max-width: 86%;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .msg.user { align-self: flex-end; align-items: flex-end; }
+      .msg.tutor { align-self: flex-start; align-items: flex-start; }
+      .bubble {
+        padding: 11px 15px;
+        border-radius: var(--radius);
+        font-size: 0.98rem;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .msg.user .bubble {
+        background: var(--user-bubble);
+        color: #fff;
+        border-bottom-right-radius: 5px;
+      }
+      .msg.tutor .bubble {
+        background: var(--surface-2);
+        border: 1px solid var(--border-soft);
+        border-bottom-left-radius: 5px;
+      }
+      .bubble-row { display: flex; align-items: flex-start; gap: 6px; }
+      .replay-btn {
+        flex: none;
+        width: 30px; height: 30px;
+        margin-top: 4px;
+        border-radius: 50%;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        color: var(--text-dim);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .replay-btn svg { width: 15px; height: 15px; }
+      .replay-btn:hover { color: var(--accent-bright); border-color: var(--accent); }
+      .replay-btn.playing { color: var(--accent-bright); border-color: var(--accent); }
+      .corrections {
+        background: var(--warn-bg);
+        border: 1px solid var(--warn-border);
+        border-radius: 12px;
+        padding: 9px 13px;
+        font-size: 0.86rem;
+        color: #f3ddab;
+        max-width: 100%;
+      }
+      .corrections .c-title {
+        font-weight: 700;
+        font-size: 0.74rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--warn-text);
+        margin-bottom: 5px;
+      }
+      .corrections ul { margin: 0; padding-left: 17px; }
+      .corrections li { margin: 3px 0; }
+      .corrections .wrong { color: #ff9d94; text-decoration: line-through; text-decoration-thickness: 1px; }
+      .corrections .right { color: #9fe8c6; font-weight: 600; }
+      .corrections .reason { color: var(--text-dim); }
+      .recap-card {
+        align-self: stretch;
+        background: var(--surface-2);
+        border: 1px solid var(--accent);
+        border-radius: var(--radius);
+        padding: 16px 18px;
+      }
+      .recap-card h3 {
+        margin: 0 0 8px;
+        font-size: 1rem;
+        color: var(--accent-bright);
+      }
+      .recap-card .recap-body { white-space: pre-wrap; font-size: 0.95rem; }
+      .recap-card .again-btn {
+        margin-top: 14px;
+        background: var(--accent);
+        color: #fff;
+        border: 0;
+        border-radius: 999px;
+        padding: 9px 18px;
+        font-weight: 700;
+      }
+      .typing {
+        display: inline-flex; gap: 5px; padding: 14px 16px;
+        background: var(--surface-2);
+        border: 1px solid var(--border-soft);
+        border-radius: var(--radius);
+        border-bottom-left-radius: 5px;
+        align-self: flex-start;
+      }
+      .typing span {
+        width: 7px; height: 7px; border-radius: 50%;
+        background: var(--text-dim);
+        animation: bounce 1.2s infinite;
+      }
+      .typing span:nth-child(2) { animation-delay: 0.15s; }
+      .typing span:nth-child(3) { animation-delay: 0.3s; }
+      @keyframes bounce { 0%, 60%, 100% { transform: translateY(0); opacity: 0.4; } 30% { transform: translateY(-4px); opacity: 1; } }
+
+      /* ---------- welcome / start panel ---------- */
+      .start-panel {
+        align-self: stretch;
+        background: var(--surface);
+        border: 1px solid var(--border-soft);
+        border-radius: var(--radius);
+        padding: 20px;
+        text-align: center;
+      }
+      .start-panel h2 { margin: 0 0 8px; font-size: 1.25rem; }
+      .start-panel p { margin: 0 auto 14px; color: var(--text-dim); font-size: 0.93rem; max-width: 46ch; }
+      .start-panel .big-start {
+        background: var(--accent);
+        color: #fff;
+        border: 0;
+        border-radius: 999px;
+        padding: 12px 30px;
+        font-weight: 800;
+        font-size: 1rem;
+      }
+      .start-panel .big-start:hover { background: var(--accent-bright); }
+
+      /* ---------- composer ---------- */
+      .composer-zone {
+        flex: none;
+        border-top: 1px solid var(--border-soft);
+        background: var(--surface);
+        padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+      }
+      .status-line {
+        text-align: center;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--text-dim);
+        min-height: 1.3em;
+        margin-bottom: 8px;
+      }
+      .status-line.listening { color: var(--danger-dim); }
+      .status-line.speaking { color: var(--accent-bright); }
+      .mic-wrap {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 10px;
+      }
+      #micBtn {
+        width: 74px; height: 74px;
+        border-radius: 50%;
+        border: 0;
+        background: var(--accent);
+        color: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        transition: background 0.15s, transform 0.1s;
+        box-shadow: 0 6px 22px rgba(124, 110, 247, 0.4);
+      }
+      #micBtn svg { width: 32px; height: 32px; }
+      #micBtn:active { transform: scale(0.96); }
+      #micBtn:disabled { opacity: 0.45; cursor: default; box-shadow: none; }
+      #micBtn.listening { background: var(--danger); box-shadow: 0 6px 22px rgba(229, 83, 75, 0.45); }
+      #micBtn.listening::before,
+      #micBtn.listening::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        border: 2px solid var(--danger);
+        animation: pulse 1.6s ease-out infinite;
+      }
+      #micBtn.listening::after { animation-delay: 0.8s; }
+      @keyframes pulse {
+        0% { transform: scale(1); opacity: 0.7; }
+        100% { transform: scale(1.65); opacity: 0; }
+      }
+      #micBtn.speaking { background: var(--surface-2); border: 2px solid var(--accent); color: var(--accent-bright); box-shadow: none; }
+      #micBtn.thinking { background: var(--surface-2); border: 2px solid var(--border); color: var(--text-dim); box-shadow: none; }
+      .input-row { display: flex; gap: 8px; align-items: center; }
+      #textInput {
+        flex: 1;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 11px 16px;
+        color: var(--text);
+        outline: none;
+        min-width: 0;
+      }
+      #textInput:focus { border-color: var(--accent); }
+      #textInput::placeholder { color: var(--text-faint); }
+      #sendBtn {
+        flex: none;
+        width: 44px; height: 44px;
+        border-radius: 50%;
+        border: 0;
+        background: var(--accent);
+        color: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #sendBtn svg { width: 19px; height: 19px; }
+      #sendBtn:disabled { opacity: 0.4; cursor: default; }
+      .footer-note {
+        margin-top: 10px;
+        text-align: center;
+        font-size: 0.74rem;
+        color: var(--text-faint);
+        line-height: 1.45;
+      }
+
+      /* ---------- setup & modal ---------- */
+      .overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(6, 5, 12, 0.82);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        z-index: 50;
+        overflow-y: auto;
+      }
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 26px 24px;
+        max-width: 480px;
+        width: 100%;
+        margin: auto;
+      }
+      .card h1, .card h2 { margin: 0 0 8px; font-size: 1.35rem; line-height: 1.25; }
+      .card .sub { color: var(--text-dim); font-size: 0.93rem; margin: 0 0 16px; }
+      .steps {
+        background: var(--bg);
+        border: 1px solid var(--border-soft);
+        border-radius: 12px;
+        padding: 12px 16px 12px 34px;
+        margin: 0 0 18px;
+        font-size: 0.9rem;
+        color: var(--text-dim);
+      }
+      .steps li { margin: 5px 0; }
+      .steps a { color: var(--accent-bright); }
+      .field { margin-bottom: 14px; }
+      .field label {
+        display: block;
+        font-size: 0.83rem;
+        font-weight: 700;
+        margin-bottom: 6px;
+        color: var(--text);
+      }
+      .field input, .field select {
+        width: 100%;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 11px 13px;
+        color: var(--text);
+        outline: none;
+      }
+      .field input:focus, .field select:focus { border-color: var(--accent); }
+      .field .hint { font-size: 0.78rem; color: var(--text-faint); margin-top: 5px; }
+      .primary-btn {
+        width: 100%;
+        background: var(--accent);
+        color: #fff;
+        border: 0;
+        border-radius: 12px;
+        padding: 13px;
+        font-weight: 800;
+        font-size: 1rem;
+      }
+      .primary-btn:hover:not(:disabled) { background: var(--accent-bright); }
+      .primary-btn:disabled { opacity: 0.55; cursor: default; }
+      .form-error {
+        background: #2c1518;
+        border: 1px solid #6e2a30;
+        color: #ffb4ae;
+        border-radius: 10px;
+        padding: 10px 13px;
+        font-size: 0.88rem;
+        margin-bottom: 14px;
+      }
+      .privacy {
+        margin-top: 16px;
+        font-size: 0.8rem;
+        color: var(--text-faint);
+        line-height: 1.55;
+        border-top: 1px solid var(--border-soft);
+        padding-top: 14px;
+      }
+      .modal-actions { display: flex; gap: 8px; margin-top: 6px; }
+      .modal-actions .primary-btn { flex: 1; }
+      .ghost-btn {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text-dim);
+        border-radius: 12px;
+        padding: 13px 16px;
+        font-weight: 700;
+      }
+      .bypass-btn { width: 100%; margin-top: 8px; }
+      .detect-btn { width: 100%; margin-bottom: 10px; }
+      .detect-btn:disabled { opacity: 0.55; cursor: default; }
+      .detect-status { font-size: 0.82rem; color: var(--ok); margin: 0 0 14px; line-height: 1.5; }
+      .danger-btn {
+        width: 100%;
+        margin-top: 10px;
+        background: transparent;
+        border: 1px solid #6e2a30;
+        color: var(--danger-dim);
+        border-radius: 12px;
+        padding: 10px;
+        font-weight: 700;
+        font-size: 0.9rem;
+      }
+
+      @media (max-width: 560px) {
+        .msg { max-width: 92%; }
+        .end-btn { margin-left: 0; }
+        .timer-chip { margin-left: auto; }
+        #micBtn { width: 68px; height: 68px; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #micBtn.listening::before, #micBtn.listening::after { animation: none; opacity: 0; }
+        .typing span, .timer-chip.live .dot { animation: none; }
+        #messages { scroll-behavior: auto; }
+      }
+    </style>
+  </head>
+  <body>
+
+    <!-- ============ SETUP (first run) ============ -->
+    <div id="setupOverlay" class="overlay hidden">
+      <div class="card">
+        <h1>Latihan Ngobrol Inggris 🎙️</h1>
+        <p class="sub">Ngobrol pakai suara dengan tutor AI: kamu ngomong, transkripnya dikirim ke Gemini, jawabannya dibacakan kembali. Gratis — pakai API key Gemini milikmu sendiri.</p>
+        <ol class="steps">
+          <li>Buka <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> dan login dengan akun Google.</li>
+          <li>Klik <strong>Create API key</strong> — gratis, tanpa kartu kredit, bukan subscription.</li>
+          <li>Salin key-nya, lalu tempel di bawah ini.</li>
+        </ol>
+        <div id="setupError" class="form-error hidden"></div>
+        <form id="setupForm">
+          <div class="field">
+            <label for="setupKey">Gemini API key</label>
+            <input id="setupKey" type="password" autocomplete="off" spellcheck="false" placeholder="AIza…" required />
+          </div>
+          <div class="field">
+            <label for="setupModel">Model</label>
+            <select id="setupModel">
+              <option value="gemini-3.5-flash" selected>gemini-3.5-flash (disarankan)</option>
+              <option value="gemini-3.8-flash">gemini-3.8-flash</option>
+              <option value="gemini-3.5-flash-lite">gemini-3.5-flash-lite (lebih ringan)</option>
+              <option value="gemini-3.6-flash">gemini-3.6-flash</option>
+              <option value="__custom__">Model lain (isi sendiri)…</option>
+            </select>
+          </div>
+          <div class="field hidden" id="setupCustomWrap">
+            <label for="setupCustomModel">Nama model custom</label>
+            <input id="setupCustomModel" type="text" autocomplete="off" spellcheck="false" placeholder="mis. gemini-3.5-pro" />
+          </div>
+          <button type="submit" class="primary-btn" id="setupSaveBtn">Simpan &amp; mulai</button>
+          <button type="button" class="ghost-btn bypass-btn hidden" id="setupBypassBtn">Simpan tanpa memeriksa &amp; tetap masuk</button>
+        </form>
+        <p class="privacy">
+          🔒 <strong>Privasi:</strong> API key hanya tersimpan di browser ini (localStorage) dan tidak pernah dikirim ke mana pun selain panggilan langsung ke API Google. Suara &amp; teks obrolanmu juga hanya pergi ke Google — tidak ada server perantara, dan tidak ada yang dibagikan antar pengunjung; setiap orang menjalankan halaman ini sendiri-sendiri.
+        </p>
+      </div>
+    </div>
+
+    <!-- ============ SETTINGS MODAL ============ -->
+    <div id="settingsOverlay" class="overlay hidden">
+      <div class="card">
+        <h2>Pengaturan</h2>
+        <p class="sub">Ganti API key atau model Gemini yang dipakai.</p>
+        <div id="settingsError" class="form-error hidden"></div>
+        <form id="settingsForm">
+          <div class="field">
+            <label for="settingsKey">Gemini API key</label>
+            <input id="settingsKey" type="password" autocomplete="off" spellcheck="false" placeholder="AIza…" />
+            <p class="hint">Dapatkan key gratis di aistudio.google.com/apikey</p>
+          </div>
+          <div class="field">
+            <label for="settingsModel">Model</label>
+            <select id="settingsModel">
+              <option value="gemini-3.5-flash">gemini-3.5-flash (disarankan)</option>
+              <option value="gemini-3.8-flash">gemini-3.8-flash</option>
+              <option value="gemini-3.5-flash-lite">gemini-3.5-flash-lite (lebih ringan)</option>
+              <option value="gemini-3.6-flash">gemini-3.6-flash</option>
+              <option value="__custom__">Model lain (isi sendiri)…</option>
+            </select>
+          </div>
+          <div class="field hidden" id="settingsCustomWrap">
+            <label for="settingsCustomModel">Nama model custom</label>
+            <input id="settingsCustomModel" type="text" autocomplete="off" spellcheck="false" placeholder="mis. gemini-3.5-pro" />
+          </div>
+          <button type="button" class="ghost-btn detect-btn" id="detectModelsBtn">Deteksi model yang tersedia</button>
+          <p class="detect-status hidden" id="detectStatus"></p>
+          <div class="modal-actions">
+            <button type="button" class="ghost-btn" id="settingsCancel">Batal</button>
+            <button type="submit" class="primary-btn" id="settingsSaveBtn">Simpan</button>
+          </div>
+          <button type="button" class="ghost-btn bypass-btn hidden" id="settingsBypassBtn">Simpan tanpa memeriksa</button>
+          <button type="button" class="danger-btn" id="forgetKeyBtn">Hapus API key dari browser ini</button>
+        </form>
+        <p class="privacy">
+          🎙️ <strong>Mode fallback “Suara AI”:</strong> kalau suara bawaan browser tidak tersedia (daftar suara kosong) atau pengenalan suara browser gagal, halaman ini otomatis memakai Gemini untuk membacakan jawaban tutor dan mentranskrip suaramu lewat tombol mic mode rekam. Mode fallback ini memakai kuota API key kamu — dan hanya aktif saat fitur suara bawaan browser tidak jalan.
+        </p>
+      </div>
+    </div>
+
+    <!-- ============ APP ============ -->
+    <div class="shell hidden" id="appShell">
+      <header>
+        <div class="header-row">
+          <div class="mode-switch" role="tablist" aria-label="Mode latihan">
+            <button type="button" id="modeCasual" class="active">Ngobrol santai</button>
+            <button type="button" id="modeInterview">Simulasi interview</button>
+          </div>
+          <span class="timer-chip" id="timerChip"><span class="dot"></span><span id="timerText">00:00</span></span>
+          <span class="ai-voice-chip hidden" id="aiVoiceChip" title="Suara tutor & transkripsi memakai Gemini API (kuota API key kamu)">Suara AI</span>
+          <button type="button" class="icon-btn on" id="voiceToggleBtn" title="Suara tutor: nyala/matikan" aria-label="Suara tutor nyala atau mati">
+            <svg id="voiceOnIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z" fill="currentColor" stroke="none"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9.4 9.4 0 0 1 0 13"/></svg>
+            <svg id="voiceOffIcon" class="hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z" fill="currentColor" stroke="none"/><line x1="16" y1="9" x2="22" y2="15"/><line x1="22" y1="9" x2="16" y2="15"/></svg>
+          </button>
+          <button type="button" class="icon-btn" id="settingsBtn" title="Pengaturan API key & model" aria-label="Pengaturan">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </button>
+        </div>
+        <div class="toggle-row">
+          <button type="button" class="toggle" id="handsFreeToggle" aria-pressed="false">
+            <span class="track"></span> Hands-free (mic nyala lagi otomatis)
+          </button>
+          <button type="button" class="end-btn" id="endSessionBtn" disabled>Akhiri sesi</button>
+        </div>
+      </header>
+
+      <div id="bannerZone"></div>
+
+      <main id="messages" aria-live="polite"></main>
+
+      <div class="composer-zone">
+        <div class="status-line" id="statusLine">Pilih mode, lalu tekan “Mulai sesi”.</div>
+        <div class="mic-wrap">
+          <button type="button" id="micBtn" disabled aria-label="Tombol mikrofon: ketuk untuk bicara">
+            <svg id="micIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" fill="currentColor" stroke="none"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+            <svg id="stopIcon" class="hidden" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+          </button>
+        </div>
+        <div class="input-row">
+          <input id="textInput" type="text" placeholder="…atau ketik di sini, lalu Enter" autocomplete="off" disabled />
+          <button type="button" id="sendBtn" disabled aria-label="Kirim pesan">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2" fill="currentColor" stroke="none"/></svg>
+          </button>
+        </div>
+        <p class="footer-note">
+          Otak percakapan ini adalah Google Gemini, memakai API key milikmu sendiri yang tersimpan hanya di browser ini.
+          Tidak ada data yang melewati server lain — semua panggilan langsung dari browsermu ke Google.
+        </p>
+      </div>
+    </div>
+
+    <script>
+      "use strict";
+
+      /* ================= constants ================= */
+      var LS_KEY = "evc.geminiApiKey";
+      var LS_MODEL = "evc.geminiModel";
+      var SILENCE_MS = 1200;
+      var MAX_TURNS = 20;
+
+      var CORRECTIONS_RULE = [
+        "CORRECTIONS RULE (very important): Never correct the learner inside the conversation itself — keep the flow natural.",
+        "However, if the learner's most recent message contains IMPORTANT mistakes (grammar that blocks meaning, a clearly wrong word choice, or a wrong tense), append a corrections block at the very end of your reply, in exactly this format:",
+        "[[CORRECTIONS]]",
+        "- \"the learner's mistake\" → \"the corrected version\" (one short reason, in English)",
+        "[[/CORRECTIONS]]",
+        "Maximum 3 corrections, only the important ones. If there is nothing important to correct, omit the block completely. Do not mention the block or the corrections anywhere else in your reply."
+      ].join("\n");
+
+      var PROMPT_CASUAL = [
+        "You are a friendly English speaking tutor having a relaxed spoken conversation with an Indonesian software engineer whose English is basic (around CEFR A2-B1). He is practicing speaking, so your job is to keep him talking.",
+        "Rules:",
+        "- Keep every reply short: 2-4 sentences, simple and clear English, natural spoken style (this text will be read aloud by a speech synthesizer, so avoid markdown, lists, emojis, and symbols).",
+        "- ALWAYS end your reply with one follow-up question so the conversation keeps flowing.",
+        "- Be warm and encouraging. Never lecture, never give grammar lessons in the flow of conversation.",
+        "- If he writes or says something in Indonesian, gently answer in English and encourage him to try in English.",
+        "- Pick up on what he says; ask about his day, his work, his hobbies, his plans.",
+        "",
+        CORRECTIONS_RULE
+      ].join("\n");
+
+      var PROMPT_INTERVIEW = [
+        "You are the interviewer in a 14-minute recorded video interview called a \"domain expert interview\" for a remote work platform. The candidate is an Indonesian software engineer whose English is basic (around CEFR A2-B1), but his technical knowledge is real. Assess both his expertise and how clearly he communicates it.",
+        "Rules:",
+        "- At the very start of the session, briefly greet the candidate, explain in one sentence how this works, and ask which domain he wants to be interviewed on. If he does not pick one, use backend engineering.",
+        "- Ask EXACTLY ONE question at a time. Wait for his answer before the next question.",
+        "- Follow up on his answers: ask for examples, trade-offs, and the reasoning behind his choices. Go deeper when an answer is shallow; move on when it is solid.",
+        "- Mix technical depth with communication: occasionally ask him to explain a concept as if to a non-technical person.",
+        "- Keep your own turns short (1-3 sentences) and in simple, clear English — your words will be read aloud by a speech synthesizer, so avoid markdown, lists, emojis, and symbols.",
+        "- Be professional and neutral-warm, like a real interviewer. Do not praise excessively and do not teach during the interview.",
+        "",
+        CORRECTIONS_RULE
+      ].join("\n");
+
+      var RECAP_INSTRUCTION = "The practice session is now over. Based on our whole conversation above, write a short session recap in clear, simple English with these three parts, each introduced by its heading on its own line: \"What we talked about:\" (2-3 sentences), \"Top corrections:\" (the 3 most important mistakes I made and their fixes, one per line, or \"No major mistakes — well done!\" if there were none), and \"Practice next:\" (2-3 specific things I should practice, one per line). Keep the whole recap under 180 words, plain text only, no markdown, and do NOT include a [[CORRECTIONS]] block.";
+
+      /* ================= state ================= */
+      var state = {
+        apiKey: "",
+        model: "gemini-3.5-flash",
+        mode: "casual",           // "casual" | "interview"
+        sessionActive: false,
+        sessionEnded: false,
+        history: [],              // [{role:"user"|"model", text}]
+        busy: false,              // waiting for Gemini
+        voiceOn: true,
+        handsFree: false,
+        listening: false,
+        speaking: false,
+        startTs: null,
+        timerId: null,
+        finalTranscript: "",
+        interimTranscript: "",
+        ttsFallback: false,      // local voices empty/broken -> Gemini TTS
+        sttFallback: false,      // SpeechRecognition unusable -> record + Gemini transcription
+        recording: false,        // MediaRecorder capture in progress (STT fallback)
+        transcribing: false     // waiting for Gemini transcription (STT fallback)
+      };
+
+      /* ================= dom refs ================= */
+      function $(id) { return document.getElementById(id); }
+      var setupOverlay = $("setupOverlay"), appShell = $("appShell");
+      var messagesEl = $("messages"), bannerZone = $("bannerZone");
+      var statusLine = $("statusLine"), micBtn = $("micBtn");
+      var micIcon = $("micIcon"), stopIcon = $("stopIcon");
+      var textInput = $("textInput"), sendBtn = $("sendBtn");
+      var timerChip = $("timerChip"), timerText = $("timerText");
+      var endSessionBtn = $("endSessionBtn");
+
+      /* ================= settings storage ================= */
+      function loadSettings() {
+        try {
+          state.apiKey = localStorage.getItem(LS_KEY) || "";
+          state.model = localStorage.getItem(LS_MODEL) || "gemini-3.5-flash";
+        } catch (e) { /* storage unavailable: session-only */ }
+      }
+      function saveSettings() {
+        try {
+          localStorage.setItem(LS_KEY, state.apiKey);
+          localStorage.setItem(LS_MODEL, state.model);
+        } catch (e) { /* ignore */ }
+      }
+      function clearSettings() {
+        try {
+          localStorage.removeItem(LS_KEY);
+          localStorage.removeItem(LS_MODEL);
+        } catch (e) { /* ignore */ }
+        state.apiKey = "";
+      }
+      function modelFromForm(selectEl, customEl) {
+        var v = selectEl.value;
+        if (v === "__custom__") {
+          var c = (customEl.value || "").trim();
+          return c || "gemini-3.5-flash";
+        }
+        return v;
+      }
+      function fillModelForm(selectEl, customEl, wrapEl) {
+        var known = ["gemini-3.5-flash", "gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-3.6-flash"];
+        if (known.indexOf(state.model) >= 0) {
+          selectEl.value = state.model;
+          wrapEl.classList.add("hidden");
+          customEl.value = "";
+        } else {
+          selectEl.value = "__custom__";
+          wrapEl.classList.remove("hidden");
+          customEl.value = state.model;
+        }
+      }
+
+      /* ================= errors (Indonesian) ================= */
+      function geminiErrorMessage(status) {
+        if (status === 400) return "Permintaan ditolak Google (400). Coba ulangi dengan pesan yang berbeda, atau ganti model di Pengaturan.";
+        if (status === 401 || status === 403) return "API key salah atau tidak valid (atau belum diaktifkan). Periksa key kamu di Pengaturan — dapatkan yang baru di aistudio.google.com/apikey.";
+        if (status === 404) return "Model tidak tersedia untuk API key ini. Buka Pengaturan, klik “Deteksi model yang tersedia” untuk melihat model yang bisa dipakai key kamu, atau pilih model 3.x lain (mis. gemini-3.5-flash).";
+        if (status === 429) return "Limit gratis Gemini habis / terlalu banyak permintaan. Tunggu beberapa menit, lalu coba lagi.";
+        if (status >= 500) return "Server Google sedang bermasalah (" + status + "). Coba lagi sebentar lagi.";
+        return "Gemini mengembalikan error " + status + ". Coba lagi, atau periksa key & model di Pengaturan.";
+      }
+      function showBanner(kind, text) {
+        bannerZone.innerHTML = "";
+        var div = document.createElement("div");
+        div.className = "banner " + kind;
+        var span = document.createElement("span");
+        span.textContent = text;
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.setAttribute("aria-label", "Tutup pemberitahuan");
+        btn.textContent = "×";
+        btn.addEventListener("click", function () { div.remove(); });
+        div.appendChild(span);
+        div.appendChild(btn);
+        bannerZone.appendChild(div);
+      }
+      function showFormError(el, text) {
+        el.textContent = text;
+        el.classList.remove("hidden");
+      }
+      function hideFormError(el) { el.classList.add("hidden"); el.textContent = ""; }
+
+      /* ================= Gemini ================= */
+      function systemPrompt() {
+        return state.mode === "interview" ? PROMPT_INTERVIEW : PROMPT_CASUAL;
+      }
+      function trimmedContents() {
+        var turns = state.history.slice(-MAX_TURNS);
+        return turns.map(function (t) {
+          return { role: t.role, parts: [{ text: t.text }] };
+        });
+      }
+      /* One logical request, up to 3 attempts. Attempt 1 sends the key in the
+         x-goog-api-key header; if fetch rejects (the request never reached
+         Google — in-app browsers, proxies, VPNs, or blockers can drop custom
+         headers or cross-origin POSTs even on a healthy connection), retries
+         send the key as a ?key= query parameter, Google's documented
+         alternative transport. HTTP error statuses are real answers from
+         Google and are NOT retried. */
+      var NETWORK_ERROR_MESSAGE = "Browser tidak berhasil menghubungi server API Google — permintaannya gagal sebelum sampai ke Google, padahal API Google sendiri bisa dihubungi dari browser biasa. Coba buka halaman ini langsung di Chrome (bukan dari dalam aplikasi lain), matikan VPN atau ad-blocker untuk halaman ini, lalu coba lagi.";
+      function delay(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+      async function geminiFetch(model, apiKey, payload) {
+        var base = "https://generativelanguage.googleapis.com/v1beta/models/" +
+          encodeURIComponent(model) + ":generateContent";
+        var body = JSON.stringify(payload);
+        var attempts = [
+          { url: base, headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey } },
+          { url: base + "?key=" + encodeURIComponent(apiKey), headers: { "Content-Type": "application/json" } },
+          { url: base + "?key=" + encodeURIComponent(apiKey), headers: { "Content-Type": "application/json" } }
+        ];
+        for (var i = 0; i < attempts.length; i++) {
+          if (i > 0) await delay(i === 1 ? 600 : 1200);
+          try {
+            return await fetch(attempts[i].url, { method: "POST", headers: attempts[i].headers, body: body });
+          } catch (e) { /* network-level failure: try the next transport */ }
+        }
+        throw new Error(NETWORK_ERROR_MESSAGE);
+      }
+
+      async function callGemini(extraUserText) {
+        var contents = trimmedContents();
+        if (extraUserText) contents.push({ role: "user", parts: [{ text: extraUserText }] });
+        var res = await geminiFetch(state.model, state.apiKey, {
+          systemInstruction: { parts: [{ text: systemPrompt() }] },
+          contents: contents,
+          generationConfig: { temperature: 0.7, maxOutputTokens: 350 }
+        });
+        if (!res.ok) throw new Error(geminiErrorMessage(res.status));
+        var data = await res.json();
+        var text = "";
+        try {
+          var parts = data.candidates[0].content.parts || [];
+          for (var i = 0; i < parts.length; i++) if (parts[i].text) text += parts[i].text;
+        } catch (e) { /* fall through */ }
+        text = text.trim();
+        if (!text) throw new Error("Gemini tidak mengembalikan teks. Coba kirim ulang pesanmu.");
+        return text;
+      }
+
+      /* Split the raw model reply into clean text + corrections list */
+      function parseReply(raw) {
+        var corrections = [];
+        var clean = raw;
+        var m = raw.match(/\[\[CORRECTIONS\]\]([\s\S]*?)\[\[\/CORRECTIONS\]\]/);
+        if (m) {
+          clean = (raw.slice(0, m.index) + raw.slice(m.index + m[0].length)).trim();
+          var lines = m[1].split("\n");
+          for (var i = 0; i < lines.length; i++) {
+            var line = lines[i].trim().replace(/^[-•*]\s*/, "");
+            if (!line) continue;
+            var arrow = line.split("→");
+            if (arrow.length >= 2) {
+              var wrong = arrow[0].trim().replace(/^"|"$/g, "");
+              var rest = arrow.slice(1).join("→").trim();
+              var paren = rest.match(/^(.*?)\s*\((.*)\)\s*$/);
+              var right = rest, reason = "";
+              if (paren) { right = paren[1].trim(); reason = paren[2].trim(); }
+              right = right.replace(/^"|"$/g, "");
+              corrections.push({ wrong: wrong, right: right, reason: reason });
+            } else {
+              corrections.push({ raw: line });
+            }
+          }
+        }
+        return { text: clean, corrections: corrections.slice(0, 3) };
+      }
+
+      /* ================= chat rendering ================= */
+      function scrollToBottom() {
+        requestAnimationFrame(function () { messagesEl.scrollTop = messagesEl.scrollHeight; });
+      }
+      function addDivider(text) {
+        var d = document.createElement("div");
+        d.className = "divider";
+        d.textContent = text;
+        messagesEl.appendChild(d);
+        scrollToBottom();
+      }
+      function speakerSvg() {
+        return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z" fill="currentColor" stroke="none"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>';
+      }
+      function addUserBubble(text) {
+        var wrap = document.createElement("div");
+        wrap.className = "msg user";
+        var b = document.createElement("div");
+        b.className = "bubble";
+        b.textContent = text;
+        wrap.appendChild(b);
+        messagesEl.appendChild(wrap);
+        scrollToBottom();
+      }
+      function addTutorBubble(cleanText, corrections) {
+        var wrap = document.createElement("div");
+        wrap.className = "msg tutor";
+        var row = document.createElement("div");
+        row.className = "bubble-row";
+        var b = document.createElement("div");
+        b.className = "bubble";
+        b.textContent = cleanText;
+        row.appendChild(b);
+        var replay = document.createElement("button");
+        replay.type = "button";
+        replay.className = "replay-btn";
+        replay.title = "Putar ulang suara tutor";
+        replay.setAttribute("aria-label", "Putar ulang jawaban tutor");
+        replay.innerHTML = speakerSvg();
+        replay.addEventListener("click", function () {
+          speak(cleanText, replay);
+        });
+        row.appendChild(replay);
+        wrap.appendChild(row);
+        if (corrections && corrections.length) {
+          var card = document.createElement("div");
+          card.className = "corrections";
+          var title = document.createElement("div");
+          title.className = "c-title";
+          title.textContent = "✎ Koreksi penting";
+          card.appendChild(title);
+          var ul = document.createElement("ul");
+          corrections.forEach(function (c) {
+            var li = document.createElement("li");
+            if (c.raw) {
+              li.textContent = c.raw;
+            } else {
+              var w = document.createElement("span");
+              w.className = "wrong";
+              w.textContent = "“" + c.wrong + "”";
+              var r = document.createElement("span");
+              r.className = "right";
+              r.textContent = "“" + c.right + "”";
+              li.appendChild(w);
+              li.appendChild(document.createTextNode(" → "));
+              li.appendChild(r);
+              if (c.reason) {
+                var rs = document.createElement("span");
+                rs.className = "reason";
+                rs.textContent = " — " + c.reason;
+                li.appendChild(rs);
+              }
+            }
+            ul.appendChild(li);
+          });
+          card.appendChild(ul);
+          wrap.appendChild(card);
+        }
+        messagesEl.appendChild(wrap);
+        scrollToBottom();
+        return wrap;
+      }
+      var typingEl = null;
+      function showTyping() {
+        hideTyping();
+        typingEl = document.createElement("div");
+        typingEl.className = "typing";
+        typingEl.innerHTML = "<span></span><span></span><span></span>";
+        messagesEl.appendChild(typingEl);
+        scrollToBottom();
+      }
+      function hideTyping() {
+        if (typingEl) { typingEl.remove(); typingEl = null; }
+      }
+      function addRecapCard(text) {
+        var card = document.createElement("div");
+        card.className = "recap-card";
+        var h = document.createElement("h3");
+        h.textContent = "📋 Rangkuman sesi";
+        var body = document.createElement("div");
+        body.className = "recap-body";
+        body.textContent = text;
+        var again = document.createElement("button");
+        again.type = "button";
+        again.className = "again-btn";
+        again.textContent = "Mulai sesi baru";
+        again.addEventListener("click", function () { startSession(); });
+        card.appendChild(h);
+        card.appendChild(body);
+        card.appendChild(again);
+        messagesEl.appendChild(card);
+        scrollToBottom();
+      }
+      function showStartPanel() {
+        messagesEl.innerHTML = "";
+        var panel = document.createElement("div");
+        panel.className = "start-panel";
+        var h = document.createElement("h2");
+        h.textContent = state.mode === "interview" ? "Simulasi interview" : "Ngobrol santai";
+        var p = document.createElement("p");
+        p.textContent = state.mode === "interview"
+          ? "Interviewer akan menyapa dan menanyakan domain yang mau kamu latih (default: backend engineering). Satu pertanyaan setiap giliran, seperti interview video 14 menit yang asli. Jawab pakai suara — tekan tombol mic, atau nyalakan hands-free."
+          : "Tutor akan menyapa duluan dan mengajak ngobrol. Tekan tombol mic dan ngomong Inggris — jangan khawatir salah, koreksi penting akan muncul sebagai kartu kecil di bawah jawaban tutor.";
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "big-start";
+        btn.textContent = "Mulai sesi";
+        btn.addEventListener("click", function () { startSession(); });
+        panel.appendChild(h);
+        panel.appendChild(p);
+        panel.appendChild(btn);
+        messagesEl.appendChild(panel);
+      }
+
+      /* ================= status / mic button ================= */
+      function setStatus(text, cls) {
+        statusLine.textContent = text;
+        statusLine.className = "status-line" + (cls ? " " + cls : "");
+      }
+      function refreshControls() {
+        var canUse = state.sessionActive && !state.sessionEnded;
+        micBtn.disabled = !canUse || state.busy || state.transcribing;
+        textInput.disabled = !canUse || state.busy;
+        sendBtn.disabled = !canUse || state.busy || !textInput.value.trim();
+        endSessionBtn.disabled = !canUse || state.busy;
+        $("modeCasual").disabled = state.busy;
+        $("modeInterview").disabled = state.busy;
+        micBtn.classList.toggle("listening", state.listening || state.recording);
+        micBtn.classList.toggle("speaking", !state.listening && !state.recording && state.speaking);
+        micBtn.classList.toggle("thinking", !state.listening && !state.recording && !state.speaking && (state.busy || state.transcribing));
+        micIcon.classList.toggle("hidden", state.listening || state.recording);
+        stopIcon.classList.toggle("hidden", !(state.listening || state.recording));
+        if (state.recording) setStatus("Merekam… ketuk untuk berhenti.", "listening");
+        else if (state.transcribing) setStatus("Mentranskrip…", "");
+        else if (state.listening) setStatus("Mendengarkan… ngomong aja. Berhenti bicara ±1 detik untuk mengirim, atau ketuk mic lagi.", "listening");
+        else if (state.busy) setStatus("Tutor sedang berpikir…", "");
+        else if (state.speaking) setStatus("Tutor sedang bicara…", "speaking");
+        else if (state.sessionEnded) setStatus("Sesi berakhir. Tekan “Mulai sesi baru” untuk latihan lagi.", "");
+        else if (state.sessionActive) setStatus("Giliranmu — ketuk mic untuk bicara, atau ketik di bawah.", "");
+        else setStatus("Pilih mode, lalu tekan “Mulai sesi”.", "");
+      }
+
+      /* ================= timer ================= */
+      function startTimer() {
+        stopTimer();
+        state.startTs = Date.now();
+        timerChip.classList.add("live");
+        timerText.textContent = "00:00";
+        state.timerId = setInterval(function () {
+          var s = Math.floor((Date.now() - state.startTs) / 1000);
+          var mm = String(Math.floor(s / 60)).padStart(2, "0");
+          var ss = String(s % 60).padStart(2, "0");
+          timerText.textContent = mm + ":" + ss;
+        }, 500);
+      }
+      function stopTimer() {
+        if (state.timerId) { clearInterval(state.timerId); state.timerId = null; }
+        timerChip.classList.remove("live");
+      }
+
+      /* ================= text-to-speech ================= */
+      var currentUtter = null;
+      var currentReplayBtn = null;
+      function pickEnglishVoice() {
+        if (!("speechSynthesis" in window)) return null;
+        var voices = window.speechSynthesis.getVoices();
+        var i, v;
+        for (i = 0; i < voices.length; i++) { v = voices[i]; if (/^en[-_]US$/i.test(v.lang)) return v; }
+        for (i = 0; i < voices.length; i++) { v = voices[i]; if (/^en[-_]US/i.test(v.lang)) return v; }
+        for (i = 0; i < voices.length; i++) { v = voices[i]; if (/^en/i.test(v.lang)) return v; }
+        return null;
+      }
+      /* ---- TTS fallback detection: local speechSynthesis wins whenever it
+         actually has voices; only an empty voice list (after voiceschanged
+         plus a grace timeout) switches reading aloud to Gemini TTS. ---- */
+      var ttsFallbackBannerShown = false;
+      function hasLocalVoices() {
+        return ("speechSynthesis" in window) && window.speechSynthesis.getVoices().length > 0;
+      }
+      function updateFallbackChip() {
+        $("aiVoiceChip").classList.toggle("hidden", !(state.ttsFallback || state.sttFallback));
+      }
+      function setTtsFallback(on) {
+        state.ttsFallback = on;
+        updateFallbackChip();
+        if (on && !ttsFallbackBannerShown && !appShell.classList.contains("hidden")) {
+          ttsFallbackBannerShown = true;
+          showBanner("warn", "Tidak ada suara bawaan yang tersedia di browser ini, jadi jawaban tutor dibacakan memakai Suara AI (Gemini TTS — memakai kuota API key kamu).");
+        }
+      }
+      function initVoiceDetection() {
+        if (!("speechSynthesis" in window)) { setTtsFallback(true); return; }
+        if (hasLocalVoices()) return;
+        setTimeout(function () { if (!hasLocalVoices()) setTtsFallback(true); }, 1800);
+      }
+      if ("speechSynthesis" in window) {
+        window.speechSynthesis.onvoiceschanged = function () {
+          /* Voices arriving late restore the free local path */
+          if (state.ttsFallback && hasLocalVoices()) setTtsFallback(false);
+        };
+      }
+
+      /* ---- Gemini TTS fallback ---- */
+      var ttsAudio = null;
+      var ttsSpeakToken = 0;
+      var ttsModelCandidates = null;
+      /* GET ListModels with the same transport fallbacks as geminiFetch */
+      async function geminiListModels(apiKey) {
+        var base = "https://generativelanguage.googleapis.com/v1beta/models";
+        var attempts = [
+          { url: base, headers: { "x-goog-api-key": apiKey } },
+          { url: base + "?key=" + encodeURIComponent(apiKey), headers: {} },
+          { url: base + "?key=" + encodeURIComponent(apiKey), headers: {} }
+        ];
+        for (var i = 0; i < attempts.length; i++) {
+          if (i > 0) await delay(i === 1 ? 600 : 1200);
+          try { return await fetch(attempts[i].url, { headers: attempts[i].headers }); }
+          catch (e) { /* network-level failure: try the next transport */ }
+        }
+        throw new Error(NETWORK_ERROR_MESSAGE);
+      }
+      async function ensureTtsCandidates() {
+        if (ttsModelCandidates) return ttsModelCandidates;
+        var found = [];
+        try {
+          var res = await geminiListModels(state.apiKey);
+          if (res.ok) {
+            var data = await res.json();
+            var list = data.models || [];
+            for (var i = 0; i < list.length; i++) {
+              var id = String(list[i].name || "").replace(/^models\//, "");
+              if (id && /tts/i.test(id)) found.push(id);
+            }
+          }
+        } catch (e) { /* detection failed: fall back to built-in candidates */ }
+        found.sort(function (a, b) {
+          function rank(id) { return id.indexOf("gemini-3") === 0 ? 0 : (id.indexOf("gemini-2.5") === 0 ? 1 : 2); }
+          return rank(a) - rank(b);
+        });
+        ttsModelCandidates = found.length ? found
+          : ["gemini-2.5-flash-preview-tts", "gemini-2.5-pro-preview-tts", "gemini-3.1-flash-tts-preview"];
+        return ttsModelCandidates;
+      }
+      /* Gemini TTS returns raw 16-bit PCM (audio/L16) — wrap it in a WAV
+         header so an <audio> element can play it. */
+      function pcmToWavUrl(b64, mimeType) {
+        var rate = 24000;
+        var m = /rate=(\d+)/.exec(mimeType || "");
+        if (m) rate = parseInt(m[1], 10) || 24000;
+        var bin = atob(b64);
+        var pcmLen = bin.length;
+        var buf = new ArrayBuffer(44 + pcmLen);
+        var v = new DataView(buf);
+        function wstr(off, s) { for (var i = 0; i < s.length; i++) v.setUint8(off + i, s.charCodeAt(i)); }
+        wstr(0, "RIFF"); v.setUint32(4, 36 + pcmLen, true); wstr(8, "WAVE");
+        wstr(12, "fmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+        v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+        wstr(36, "data"); v.setUint32(40, pcmLen, true);
+        for (var i = 0; i < pcmLen; i++) v.setUint8(44 + i, bin.charCodeAt(i));
+        return URL.createObjectURL(new Blob([buf], { type: "audio/wav" }));
+      }
+      function finishGeminiSpeaking() {
+        if (currentReplayBtn) currentReplayBtn.classList.remove("playing");
+        currentReplayBtn = null;
+        state.speaking = false;
+        refreshControls();
+        maybeHandsFreeListen();
+      }
+      async function speakViaGemini(text) {
+        var token = ++ttsSpeakToken;
+        state.speaking = true;
+        refreshControls();
+        try {
+          var candidates = await ensureTtsCandidates();
+          var audioData = null, audioMime = "", lastStatus = 0;
+          for (var i = 0; i < candidates.length; i++) {
+            var res = await geminiFetch(candidates[i], state.apiKey, {
+              contents: [{ parts: [{ text: text }] }],
+              generationConfig: {
+                responseModalities: ["AUDIO"],
+                speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Kore" } } }
+              }
+            });
+            if (!res.ok) {
+              lastStatus = res.status;
+              if (res.status === 404) continue; /* model not on this key: try the next TTS candidate */
+              throw new Error(geminiErrorMessage(res.status));
+            }
+            var data = await res.json();
+            try {
+              var parts = data.candidates[0].content.parts || [];
+              for (var j = 0; j < parts.length; j++) {
+                if (parts[j].inlineData && parts[j].inlineData.data) {
+                  audioData = parts[j].inlineData.data;
+                  audioMime = parts[j].inlineData.mimeType || "";
+                  break;
+                }
+              }
+            } catch (e) { /* fall through */ }
+            if (audioData) break;
+          }
+          if (!audioData) throw new Error(lastStatus === 404 ? geminiErrorMessage(404) : "Gemini tidak mengembalikan audio untuk dibacakan. Coba lagi.");
+          if (token !== ttsSpeakToken) return; /* superseded by a newer utterance / stop */
+          if (!ttsAudio) ttsAudio = new Audio();
+          var url;
+          if (/l16|pcm/i.test(audioMime)) {
+            url = pcmToWavUrl(audioData, audioMime);
+          } else {
+            var bin = atob(audioData);
+            var bytes = new Uint8Array(bin.length);
+            for (var k = 0; k < bin.length; k++) bytes[k] = bin.charCodeAt(k);
+            url = URL.createObjectURL(new Blob([bytes], { type: (audioMime || "audio/wav").split(";")[0] }));
+          }
+          ttsAudio.src = url;
+          ttsAudio.onended = ttsAudio.onerror = function () {
+            URL.revokeObjectURL(url);
+            if (token !== ttsSpeakToken) return;
+            finishGeminiSpeaking();
+          };
+          await ttsAudio.play();
+        } catch (err) {
+          if (token !== ttsSpeakToken) return;
+          showBanner("error", "Suara AI gagal membacakan jawaban: " + (err.message || "coba lagi."));
+          finishGeminiSpeaking();
+        }
+      }
+
+      function stopSpeaking() {
+        if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+        ttsSpeakToken++;
+        if (ttsAudio) { try { ttsAudio.pause(); } catch (e) { /* ignore */ } }
+        if (currentReplayBtn) currentReplayBtn.classList.remove("playing");
+        currentReplayBtn = null;
+        currentUtter = null;
+        if (state.speaking) { state.speaking = false; refreshControls(); }
+      }
+      function speak(text, replayBtn) {
+        if (!state.voiceOn && !replayBtn) return;
+        if (state.ttsFallback) {
+          if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+          ttsSpeakToken++;
+          if (ttsAudio) { try { ttsAudio.pause(); } catch (e) { /* ignore */ } }
+          if (currentReplayBtn) currentReplayBtn.classList.remove("playing");
+          currentReplayBtn = replayBtn || null;
+          if (replayBtn) replayBtn.classList.add("playing");
+          speakViaGemini(text);
+          return;
+        }
+        if (!("speechSynthesis" in window)) return;
+        window.speechSynthesis.cancel();
+        if (currentReplayBtn) currentReplayBtn.classList.remove("playing");
+        var u = new SpeechSynthesisUtterance(text);
+        u.lang = "en-US";
+        u.rate = 0.95;
+        var voice = pickEnglishVoice();
+        if (voice) u.voice = voice;
+        currentUtter = u;
+        currentReplayBtn = replayBtn || null;
+        if (replayBtn) replayBtn.classList.add("playing");
+        state.speaking = true;
+        refreshControls();
+        u.onend = u.onerror = function () {
+          if (currentUtter !== u) return;
+          currentUtter = null;
+          if (currentReplayBtn) currentReplayBtn.classList.remove("playing");
+          currentReplayBtn = null;
+          state.speaking = false;
+          refreshControls();
+          maybeHandsFreeListen();
+        };
+        window.speechSynthesis.speak(u);
+      }
+
+      /* ================= speech recognition ================= */
+      var SR = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+      var recognition = null;
+      var silenceTimer = null;
+      var wantListen = false;
+      var lastSrError = null;
+
+      function clearSilenceTimer() {
+        if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
+      }
+      function armSilenceTimer() {
+        clearSilenceTimer();
+        silenceTimer = setTimeout(function () { finishListening(true); }, SILENCE_MS);
+      }
+      function startListening() {
+        if (state.listening || state.busy || state.sessionEnded || !state.sessionActive) return;
+        if (state.sttFallback || !SR) { startRecording(); return; }
+        stopSpeaking();
+        state.finalTranscript = "";
+        state.interimTranscript = "";
+        try {
+          recognition = new SR();
+        } catch (e) {
+          showBanner("error", "Speech recognition gagal dimulai di browser ini. Coba Google Chrome versi terbaru.");
+          return;
+        }
+        recognition.lang = "en-US";
+        recognition.interimResults = true;
+        recognition.continuous = true;
+        recognition.maxAlternatives = 1;
+        wantListen = true;
+        lastSrError = null;
+        recognition.onresult = function (ev) {
+          lastSrError = null;
+          var finalPart = "", interimPart = "";
+          for (var i = ev.resultIndex; i < ev.results.length; i++) {
+            var r = ev.results[i];
+            if (r.isFinal) finalPart += r[0].transcript;
+            else interimPart += r[0].transcript;
+          }
+          if (finalPart) state.finalTranscript += finalPart;
+          state.interimTranscript = interimPart;
+          textInput.value = (state.finalTranscript + interimPart).trim();
+          sendBtn.disabled = !textInput.value.trim();
+          armSilenceTimer();
+        };
+        recognition.onerror = function (ev) {
+          lastSrError = ev.error || "unknown";
+          if (ev.error === "not-allowed" || ev.error === "service-not-allowed") {
+            wantListen = false;
+            state.listening = false;
+            clearSilenceTimer();
+            enableSttFallback("Pengenalan suara bawaan browser gagal di browser ini (" + ev.error + "). Beralih ke mode rekam Suara AI: ketuk mic untuk merekam, ketuk lagi untuk berhenti — Gemini yang mentranskrip (memakai kuota API key kamu).");
+          } else if (ev.error === "network") {
+            wantListen = false;
+            state.listening = false;
+            clearSilenceTimer();
+            enableSttFallback("Pengenalan suara bawaan browser tidak bisa menghubungi server suaranya dari browser ini. Beralih ke mode rekam Suara AI: ketuk mic untuk merekam, ketuk lagi untuk berhenti — Gemini yang mentranskrip (memakai kuota API key kamu).");
+          } else if (ev.error === "audio-capture") {
+            wantListen = false;
+            state.listening = false;
+            clearSilenceTimer();
+            showBanner("error", "Mikrofon tidak ditemukan. Periksa apakah ada mic yang terhubung, lalu coba lagi.");
+            refreshControls();
+          }
+          /* "no-speech" / "aborted": onend handles state */
+        };
+        recognition.onend = function () {
+          var wasWant = wantListen;
+          state.listening = false;
+          if (wasWant && !state.busy) {
+            /* Browser stopped on its own (e.g. long pause handled by silence timer already,
+               or an unexpected cut-off): if we still have unsent text, send it. */
+            var pending = (state.finalTranscript + state.interimTranscript).trim();
+            if (pending) { finishListening(true); return; }
+            /* Nothing captured but session expects listening (hands-free): restart —
+               unless recognition died with a real error (network, audio, etc.),
+               where blind restarts would spin forever. */
+            if (state.handsFree && state.sessionActive && !state.sessionEnded && !state.speaking &&
+                (!lastSrError || lastSrError === "no-speech")) {
+              setTimeout(function () { if (wantListen) startListening(); }, 350);
+            } else if (lastSrError && lastSrError !== "no-speech" && lastSrError !== "aborted") {
+              wantListen = false;
+            }
+          }
+          refreshControls();
+        };
+        try {
+          recognition.start();
+          state.listening = true;
+        } catch (e) {
+          state.listening = false;
+          wantListen = false;
+        }
+        refreshControls();
+      }
+      function finishListening(shouldSend) {
+        clearSilenceTimer();
+        wantListen = false;
+        var rec = recognition;
+        recognition = null;
+        if (rec) { try { rec.onend = null; rec.stop(); } catch (e) { /* ignore */ } }
+        state.listening = false;
+        var text = (state.finalTranscript + " " + state.interimTranscript).trim() || textInput.value.trim();
+        state.finalTranscript = "";
+        state.interimTranscript = "";
+        refreshControls();
+        if (shouldSend && text) {
+          textInput.value = "";
+          sendUserText(text);
+        }
+      }
+      /* ================= STT fallback: record + Gemini transcription ================= */
+      function enableSttFallback(msg) {
+        state.sttFallback = true;
+        updateFallbackChip();
+        if (msg) showBanner("warn", msg);
+        refreshControls();
+      }
+      var mediaRecorder = null;
+      var mediaStream = null;
+      var recordChunks = [];
+      function pickRecorderMime() {
+        if (!window.MediaRecorder) return "";
+        var options = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"];
+        for (var i = 0; i < options.length; i++) {
+          try { if (MediaRecorder.isTypeSupported(options[i])) return options[i]; } catch (e) { /* try next */ }
+        }
+        return "";
+      }
+      function stopRecordStream() {
+        if (mediaStream) {
+          mediaStream.getTracks().forEach(function (t) { t.stop(); });
+          mediaStream = null;
+        }
+      }
+      async function startRecording() {
+        if (state.recording || state.busy || state.transcribing || state.sessionEnded || !state.sessionActive) return;
+        stopSpeaking();
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) {
+          showBanner("error", "Browser ini juga tidak mendukung perekaman audio, jadi mode rekam Suara AI tidak bisa dipakai. Tetap latihan dengan mengetik di kolom bawah.");
+          return;
+        }
+        try {
+          mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        } catch (e) {
+          showBanner("error", "Izin mikrofon ditolak. Cara mengizinkan: klik ikon gembok / tune di address bar Chrome → Site settings → Microphone → Allow, lalu muat ulang halaman ini.");
+          return;
+        }
+        recordChunks = [];
+        var mime = pickRecorderMime();
+        try {
+          mediaRecorder = mime ? new MediaRecorder(mediaStream, { mimeType: mime }) : new MediaRecorder(mediaStream);
+        } catch (e) {
+          stopRecordStream();
+          showBanner("error", "Perekam audio gagal dimulai di browser ini. Tetap latihan dengan mengetik di kolom bawah.");
+          return;
+        }
+        mediaRecorder.ondataavailable = function (ev) { if (ev.data && ev.data.size) recordChunks.push(ev.data); };
+        mediaRecorder.onstop = onRecordingStopped;
+        mediaRecorder.start();
+        state.recording = true;
+        refreshControls();
+      }
+      function stopRecording() {
+        if (!state.recording || !mediaRecorder) return;
+        state.recording = false;
+        try { mediaRecorder.stop(); } catch (e) { stopRecordStream(); refreshControls(); }
+        refreshControls();
+      }
+      function cancelRecording() {
+        if (!state.recording) return;
+        state.recording = false;
+        if (mediaRecorder) {
+          mediaRecorder.onstop = null;
+          try { mediaRecorder.stop(); } catch (e) { /* ignore */ }
+          mediaRecorder = null;
+        }
+        stopRecordStream();
+        refreshControls();
+      }
+      function onRecordingStopped() {
+        var mime = (mediaRecorder && mediaRecorder.mimeType) || "audio/webm";
+        mediaRecorder = null;
+        stopRecordStream();
+        var blob = new Blob(recordChunks, { type: mime });
+        recordChunks = [];
+        refreshControls();
+        if (!blob.size) {
+          showBanner("warn", "Rekamannya kosong — coba bicara sedikit lebih lama sebelum ketuk berhenti.");
+          return;
+        }
+        transcribeAndSend(blob, mime.split(";")[0]);
+      }
+      function blobToBase64(blob) {
+        return new Promise(function (resolve, reject) {
+          var reader = new FileReader();
+          reader.onload = function () {
+            var s = String(reader.result || "");
+            resolve(s.slice(s.indexOf(",") + 1));
+          };
+          reader.onerror = function () { reject(new Error("Gagal membaca rekaman audio.")); };
+          reader.readAsDataURL(blob);
+        });
+      }
+      async function transcribeAndSend(blob, mime) {
+        state.transcribing = true;
+        refreshControls();
+        try {
+          var b64 = await blobToBase64(blob);
+          var res = await geminiFetch(state.model, state.apiKey, {
+            contents: [{ role: "user", parts: [
+              { text: "Transcribe this English speech to text, verbatim, no commentary" },
+              { inlineData: { mimeType: mime, data: b64 } }
+            ] }],
+            generationConfig: { temperature: 0, maxOutputTokens: 300 }
+          });
+          if (!res.ok) throw new Error(geminiErrorMessage(res.status));
+          var data = await res.json();
+          var text = "";
+          try {
+            var parts = data.candidates[0].content.parts || [];
+            for (var i = 0; i < parts.length; i++) if (parts[i].text) text += parts[i].text;
+          } catch (e) { /* fall through */ }
+          text = text.trim();
+          state.transcribing = false;
+          refreshControls();
+          if (!text) {
+            showBanner("warn", "Transkripnya kosong — suara tidak terdengar jelas. Coba rekam lagi, lebih dekat ke mic.");
+            return;
+          }
+          sendUserText(text);
+        } catch (err) {
+          state.transcribing = false;
+          refreshControls();
+          showBanner("error", err.message || "Gagal mentranskrip rekaman. Coba lagi.");
+        }
+      }
+
+      function maybeHandsFreeListen() {
+        if (state.handsFree && state.sessionActive && !state.sessionEnded && !state.busy && !state.listening) {
+          setTimeout(function () {
+            if (state.handsFree && !state.speaking && !state.busy) startListening();
+          }, 300);
+        }
+      }
+
+      /* ================= conversation flow ================= */
+      async function startSession() {
+        stopSpeaking();
+        cancelRecording();
+        if (state.listening) finishListening(false);
+        state.history = [];
+        state.sessionActive = true;
+        state.sessionEnded = false;
+        messagesEl.innerHTML = "";
+        bannerZone.innerHTML = "";
+        addDivider(state.mode === "interview" ? "Sesi simulasi interview dimulai" : "Sesi ngobrol santai dimulai");
+        startTimer();
+        refreshControls();
+        var kickoff = state.mode === "interview"
+          ? "[The session has just started. Greet me briefly, explain in one sentence how this interview simulation works, and ask me which domain I want to be interviewed on — and mention backend engineering is the default if I don't choose.]"
+          : "[The session has just started. Greet me warmly and ask me one easy opening question to get us talking, for example about my day.]";
+        await runTutorTurn(kickoff, true);
+      }
+
+      async function runTutorTurn(userText, isKickoff) {
+        state.busy = true;
+        refreshControls();
+        showTyping();
+        state.history.push({ role: "user", text: userText });
+        try {
+          var raw = await callGemini();
+          var parsed = parseReply(raw);
+          state.history.push({ role: "model", text: parsed.text });
+          hideTyping();
+          state.busy = false;
+          addTutorBubble(parsed.text, parsed.corrections);
+          refreshControls();
+          if (state.voiceOn) speak(parsed.text);
+          else maybeHandsFreeListen();
+        } catch (err) {
+          hideTyping();
+          state.busy = false;
+          /* Remove the failed user turn so history stays alternating & valid */
+          state.history.pop();
+          refreshControls();
+          showBanner("error", err.message || "Terjadi kesalahan. Coba lagi.");
+          if (!isKickoff) {
+            /* give the user their text back in the composer */
+            textInput.value = userText;
+            sendBtn.disabled = false;
+          }
+        }
+      }
+
+      function sendUserText(text) {
+        text = (text || "").trim();
+        if (!text || state.busy || !state.sessionActive || state.sessionEnded) return;
+        if (state.listening) finishListening(false);
+        stopSpeaking();
+        addUserBubble(text);
+        runTutorTurn(text, false);
+      }
+
+      async function endSession() {
+        if (!state.sessionActive || state.sessionEnded || state.busy) return;
+        if (state.listening) finishListening(false);
+        cancelRecording();
+        stopSpeaking();
+        state.busy = true;
+        refreshControls();
+        showTyping();
+        try {
+          var raw = await callGemini(RECAP_INSTRUCTION);
+          var parsed = parseReply(raw);
+          hideTyping();
+          state.busy = false;
+          state.sessionEnded = true;
+          stopTimer();
+          addDivider("Sesi berakhir — durasi " + timerText.textContent);
+          addRecapCard(parsed.text);
+          refreshControls();
+        } catch (err) {
+          hideTyping();
+          state.busy = false;
+          refreshControls();
+          showBanner("error", err.message || "Gagal membuat rangkuman. Coba tekan Akhiri sesi lagi.");
+        }
+      }
+
+      /* ================= mode switching ================= */
+      function setMode(mode) {
+        if (state.mode === mode && state.sessionActive) return;
+        state.mode = mode;
+        $("modeCasual").classList.toggle("active", mode === "casual");
+        $("modeInterview").classList.toggle("active", mode === "interview");
+        if (state.sessionActive && !state.sessionEnded) {
+          /* Switching mode mid-session restarts cleanly with the new persona */
+          stopTimer();
+          state.sessionActive = false;
+          state.sessionEnded = false;
+          state.history = [];
+          showStartPanel();
+          refreshControls();
+        } else if (!state.sessionActive) {
+          showStartPanel();
+        } else {
+          showStartPanel();
+          state.sessionActive = false;
+          state.sessionEnded = false;
+          state.history = [];
+          refreshControls();
+        }
+      }
+
+      /* ================= setup & settings forms ================= */
+      function wireModelSelect(selectEl, customWrap) {
+        selectEl.addEventListener("change", function () {
+          customWrap.classList.toggle("hidden", selectEl.value !== "__custom__");
+        });
+      }
+      function enterApp() {
+        setupOverlay.classList.add("hidden");
+        appShell.classList.remove("hidden");
+        showStartPanel();
+        refreshControls();
+        if (!SR) {
+          state.sttFallback = true;
+          updateFallbackChip();
+          showBanner("warn", "Browser ini tidak mendukung pengenalan suara bawaan, jadi tombol mic memakai mode rekam Suara AI: ketuk untuk merekam, ketuk lagi untuk berhenti — rekaman ditranskrip oleh Gemini (memakai kuota API key kamu). Mengetik juga tetap bisa.");
+        }
+        if (!("speechSynthesis" in window)) {
+          showBanner("warn", "Browser ini tidak mendukung text-to-speech bawaan, jadi jawaban tutor dibacakan memakai Suara AI (Gemini TTS, memakai kuota API key kamu). Obrolan teks tetap berfungsi.");
+        }
+        if (state.ttsFallback && ("speechSynthesis" in window) && !ttsFallbackBannerShown) {
+          ttsFallbackBannerShown = true;
+          showBanner("warn", "Tidak ada suara bawaan yang tersedia di browser ini, jadi jawaban tutor dibacakan memakai Suara AI (Gemini TTS — memakai kuota API key kamu).");
+        }
+      }
+      /* Ask Google which models this key can actually call, then rebuild the
+         settings dropdown from the answer — generateContent models only. */
+      function detectModels() {
+        var key = $("settingsKey").value.trim();
+        var errEl = $("settingsError");
+        var btn = $("detectModelsBtn");
+        var statusEl = $("detectStatus");
+        if (!key) { showFormError(errEl, "Isi dulu API key di kolom di atas, lalu klik tombol deteksi lagi."); return; }
+        hideFormError(errEl);
+        statusEl.classList.add("hidden");
+        btn.disabled = true;
+        var old = btn.textContent;
+        btn.textContent = "Mendeteksi model…";
+        fetch("https://generativelanguage.googleapis.com/v1beta/models?key=" + encodeURIComponent(key))
+          .then(function (res) {
+            if (!res.ok) {
+              if (res.status === 400) throw new Error("API key tidak valid menurut Google (400). Salin ulang key dari aistudio.google.com/apikey, lalu coba deteksi lagi.");
+              throw new Error(geminiErrorMessage(res.status));
+            }
+            return res.json();
+          })
+          .then(function (data) {
+            var usable = [];
+            var list = data.models || [];
+            for (var i = 0; i < list.length; i++) {
+              var methods = list[i].supportedGenerationMethods || [];
+              var id = String(list[i].name || "").replace(/^models\//, "");
+              if (id && methods.indexOf("generateContent") >= 0) {
+                usable.push({ id: id, label: list[i].displayName ? list[i].displayName + " (" + id + ")" : id });
+              }
+            }
+            if (!usable.length) throw new Error("Google tidak mengembalikan model apa pun yang bisa dipakai key ini. Periksa key kamu, atau buat key baru di aistudio.google.com/apikey.");
+            var selectEl = $("settingsModel");
+            var prev = modelFromForm(selectEl, $("settingsCustomModel"));
+            selectEl.innerHTML = "";
+            usable.forEach(function (m) {
+              var opt = document.createElement("option");
+              opt.value = m.id;
+              opt.textContent = m.label;
+              selectEl.appendChild(opt);
+            });
+            var customOpt = document.createElement("option");
+            customOpt.value = "__custom__";
+            customOpt.textContent = "Model lain (isi sendiri)…";
+            selectEl.appendChild(customOpt);
+            var stillThere = false;
+            for (var j = 0; j < selectEl.options.length; j++) {
+              if (selectEl.options[j].value === prev) { stillThere = true; break; }
+            }
+            if (stillThere) {
+              selectEl.value = prev;
+              $("settingsCustomWrap").classList.add("hidden");
+            } else if (prev && prev !== "__custom__") {
+              /* Keep the previously chosen model reachable via the custom field */
+              selectEl.value = "__custom__";
+              $("settingsCustomWrap").classList.remove("hidden");
+              $("settingsCustomModel").value = prev;
+            } else {
+              selectEl.selectedIndex = 0;
+              $("settingsCustomWrap").classList.add("hidden");
+            }
+            statusEl.textContent = "Ditemukan " + usable.length + " model yang tersedia untuk key ini — daftar model di atas sudah diperbarui. Pilih salah satu, lalu klik Simpan.";
+            statusEl.classList.remove("hidden");
+          })
+          .catch(function (err) {
+            var msg = err && err.message;
+            if (!msg || err instanceof TypeError) msg = NETWORK_ERROR_MESSAGE;
+            showFormError(errEl, msg);
+          })
+          .then(function () {
+            btn.disabled = false;
+            btn.textContent = old;
+          });
+      }
+
+      function validateKeyAndModel(key, model, errEl, btn, bypassBtn, done) {
+        if (!key) { showFormError(errEl, "Tempel dulu API key Gemini kamu."); return; }
+        if (key.length < 20 || /\s/.test(key)) { showFormError(errEl, "Key itu kelihatannya tidak lengkap atau mengandung spasi. Salin ulang key dari aistudio.google.com/apikey."); return; }
+        hideFormError(errEl);
+        bypassBtn.classList.add("hidden");
+        btn.disabled = true;
+        var old = btn.textContent;
+        btn.textContent = "Memeriksa key…";
+        /* Lightweight live check: one tiny request so a bad key fails here, not mid-chat.
+           If every transport fails at network level, the key itself may still be
+           fine — offer to save it unchecked instead of trapping the user here. */
+        geminiFetch(model, key, {
+          contents: [{ role: "user", parts: [{ text: "Say hi" }] }],
+          generationConfig: { maxOutputTokens: 5 }
+        }).then(function (res) {
+          btn.disabled = false;
+          btn.textContent = old;
+          if (res.ok) { state.apiKey = key; state.model = model; saveSettings(); done(); }
+          else showFormError(errEl, geminiErrorMessage(res.status));
+        }).catch(function (err) {
+          btn.disabled = false;
+          btn.textContent = old;
+          showFormError(errEl, (err && err.message) || NETWORK_ERROR_MESSAGE);
+          bypassBtn.classList.remove("hidden");
+          bypassBtn.onclick = function () {
+            bypassBtn.classList.add("hidden");
+            hideFormError(errEl);
+            state.apiKey = key;
+            state.model = model;
+            saveSettings();
+            done();
+          };
+        });
+      }
+
+      function initForms() {
+        wireModelSelect($("setupModel"), $("setupCustomWrap"));
+        wireModelSelect($("settingsModel"), $("settingsCustomWrap"));
+        $("detectModelsBtn").addEventListener("click", detectModels);
+
+        $("setupForm").addEventListener("submit", function (ev) {
+          ev.preventDefault();
+          var key = $("setupKey").value.trim();
+          var model = modelFromForm($("setupModel"), $("setupCustomModel"));
+          validateKeyAndModel(key, model, $("setupError"), $("setupSaveBtn"), $("setupBypassBtn"), function () {
+            enterApp();
+          });
+        });
+
+        $("settingsBtn").addEventListener("click", function () {
+          $("settingsKey").value = state.apiKey;
+          fillModelForm($("settingsModel"), $("settingsCustomModel"), $("settingsCustomWrap"));
+          $("detectStatus").classList.add("hidden");
+          hideFormError($("settingsError"));
+          $("settingsBypassBtn").classList.add("hidden");
+          $("settingsOverlay").classList.remove("hidden");
+        });
+        $("settingsCancel").addEventListener("click", function () {
+          $("settingsOverlay").classList.add("hidden");
+        });
+        $("settingsOverlay").addEventListener("click", function (ev) {
+          if (ev.target === $("settingsOverlay")) $("settingsOverlay").classList.add("hidden");
+        });
+        $("settingsForm").addEventListener("submit", function (ev) {
+          ev.preventDefault();
+          var key = $("settingsKey").value.trim();
+          var model = modelFromForm($("settingsModel"), $("settingsCustomModel"));
+          validateKeyAndModel(key, model, $("settingsError"), $("settingsSaveBtn"), $("settingsBypassBtn"), function () {
+            $("settingsOverlay").classList.add("hidden");
+            showBanner("warn", "Pengaturan disimpan (key: ••••" + key.slice(-4) + ", model: " + model + "). Sesi baru akan memakai pengaturan ini.");
+          });
+        });
+        $("forgetKeyBtn").addEventListener("click", function () {
+          clearSettings();
+          stopTimer();
+          state.sessionActive = false;
+          state.history = [];
+          $("settingsOverlay").classList.add("hidden");
+          appShell.classList.add("hidden");
+          $("setupKey").value = "";
+          setupOverlay.classList.remove("hidden");
+        });
+      }
+
+      /* ================= composer & toggles ================= */
+      function initControls() {
+        micBtn.addEventListener("click", function () {
+          if (state.recording) stopRecording();
+          else if (state.listening) finishListening(true);
+          else startListening();
+        });
+        sendBtn.addEventListener("click", function () {
+          var t = textInput.value;
+          textInput.value = "";
+          sendUserText(t);
+        });
+        textInput.addEventListener("keydown", function (ev) {
+          if (ev.key === "Enter") {
+            ev.preventDefault();
+            var t = textInput.value;
+            textInput.value = "";
+            sendUserText(t);
+          }
+        });
+        textInput.addEventListener("input", function () {
+          if (!state.listening) sendBtn.disabled = state.busy || !textInput.value.trim() || !state.sessionActive || state.sessionEnded;
+        });
+        $("modeCasual").addEventListener("click", function () { setMode("casual"); });
+        $("modeInterview").addEventListener("click", function () { setMode("interview"); });
+        endSessionBtn.addEventListener("click", endSession);
+
+        $("voiceToggleBtn").addEventListener("click", function () {
+          state.voiceOn = !state.voiceOn;
+          $("voiceToggleBtn").classList.toggle("on", state.voiceOn);
+          $("voiceOnIcon").classList.toggle("hidden", !state.voiceOn);
+          $("voiceOffIcon").classList.toggle("hidden", state.voiceOn);
+          if (!state.voiceOn) stopSpeaking();
+        });
+        $("handsFreeToggle").addEventListener("click", function () {
+          state.handsFree = !state.handsFree;
+          $("handsFreeToggle").setAttribute("aria-pressed", state.handsFree ? "true" : "false");
+          if (state.handsFree && state.sessionActive && !state.sessionEnded && !state.busy && !state.speaking && !state.listening) {
+            startListening();
+          }
+          if (!state.handsFree && state.listening) {
+            /* keep current capture, just stop auto-restart */
+            wantListen = true;
+          }
+        });
+      }
+
+      /* ================= init ================= */
+      loadSettings();
+      initForms();
+      initControls();
+      initVoiceDetection();
+      if (state.apiKey) {
+        enterApp();
+      } else {
+        setupOverlay.classList.remove("hidden");
+      }
+      refreshControls();
+    </script>
+  </body>
+</html>
