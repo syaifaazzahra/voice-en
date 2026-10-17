@@ -759,7 +759,7 @@
         <p class="privacy">
           🎙️ <strong>Mode fallback “Suara AI”:</strong> kalau suara bawaan browser tidak tersedia (daftar suara kosong) atau pengenalan suara browser gagal, halaman ini otomatis memakai Gemini untuk membacakan jawaban tutor dan mentranskrip suaramu lewat tombol mic mode rekam. Mode fallback ini memakai kuota API key kamu — dan hanya aktif saat fitur suara bawaan browser tidak jalan. Fallback Suara AI selalu memakai Gemini API key di atas, apa pun Penyedia AI yang dipilih — yang mengikuti penyedia terpilih hanya percakapan teksnya.
         </p>
-        <p class="build-stamp">Versi build: v4-20261018</p>
+        <p class="build-stamp">Versi build: v5-20261018</p>
       </div>
     </div>
 
@@ -795,7 +795,7 @@
 
       <div id="debugPanel" class="debug-panel hidden">
         <div class="debug-head">
-          <span>Log debug STT — build v4-20261018</span>
+          <span>Log debug STT — build v5-20261018</span>
           <button type="button" id="debugClearBtn">Bersihkan</button>
         </div>
         <div id="debugLog" class="debug-log" aria-label="Log debug pengenalan suara"></div>
@@ -819,7 +819,7 @@
           Otak percakapan ini adalah Google Gemini, memakai API key milikmu sendiri yang tersimpan hanya di browser ini.
           Tidak ada data yang melewati server lain — semua panggilan langsung dari browsermu ke Google.
         </p>
-        <p class="build-stamp">v4-20261018</p>
+        <p class="build-stamp">v5-20261018</p>
       </div>
     </div>
 
@@ -834,7 +834,7 @@
       var LS_OA_KEY = "evc.oaApiKey";
       var LS_OA_MODEL = "evc.oaModel";
       var LS_DEBUG = "evc.debugStt";
-      var BUILD_VERSION = "v4-20261018";
+      var BUILD_VERSION = "v5-20261018";
       var SILENCE_MS = 1200;
       var MAX_TURNS = 20;
 
@@ -1348,9 +1348,15 @@
         return null;
       }
       /* ---- TTS fallback detection: local speechSynthesis wins whenever it
-         actually has voices; only an empty voice list (after voiceschanged
-         plus a grace timeout) switches reading aloud to Gemini TTS. ---- */
+         actually has voices. Chrome on Linux fills the voice list
+         asynchronously (it arrives via voiceschanged), so an empty list at
+         load proves nothing yet: wait for voiceschanged until voices show
+         up or a 4s timeout passes, and only then — if the list is still
+         empty — switch reading aloud to Gemini TTS. While waiting, the
+         state stays neutral: no fallback chip or banner. ---- */
       var ttsFallbackBannerShown = false;
+      var voiceWaitTimer = null;      /* pending "voices still empty?" verdict */
+      var VOICE_WAIT_MS = 4000;
       function hasLocalVoices() {
         return ("speechSynthesis" in window) && window.speechSynthesis.getVoices().length > 0;
       }
@@ -1365,15 +1371,26 @@
           showBanner("warn", "Tidak ada suara bawaan yang tersedia di browser ini, jadi jawaban tutor dibacakan memakai Suara AI (Gemini TTS — memakai kuota API key kamu).");
         }
       }
+      function cancelVoiceWait() {
+        if (voiceWaitTimer) { clearTimeout(voiceWaitTimer); voiceWaitTimer = null; }
+      }
       function initVoiceDetection() {
         if (!("speechSynthesis" in window)) { setTtsFallback(true); return; }
-        if (hasLocalVoices()) return;
-        setTimeout(function () { if (!hasLocalVoices()) setTtsFallback(true); }, 1800);
+        if (hasLocalVoices()) { cancelVoiceWait(); return; }
+        if (voiceWaitTimer) return; /* a verdict is already pending */
+        voiceWaitTimer = setTimeout(function () {
+          voiceWaitTimer = null;
+          if (!hasLocalVoices()) setTtsFallback(true);
+        }, VOICE_WAIT_MS);
       }
       if ("speechSynthesis" in window) {
         window.speechSynthesis.onvoiceschanged = function () {
-          /* Voices arriving late restore the free local path */
-          if (state.ttsFallback && hasLocalVoices()) setTtsFallback(false);
+          /* Voices arriving (however late) cancel the pending verdict and
+             restore the free local path if the fallback already kicked in */
+          if (hasLocalVoices()) {
+            cancelVoiceWait();
+            if (state.ttsFallback) setTtsFallback(false);
+          }
         };
       }
 
