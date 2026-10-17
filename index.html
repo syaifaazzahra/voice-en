@@ -443,6 +443,50 @@
         color: var(--text-faint);
         line-height: 1.45;
       }
+      .build-stamp {
+        margin: 6px 0 0;
+        text-align: center;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.7rem;
+        color: var(--text-faint);
+      }
+      .card .build-stamp { text-align: left; margin-top: 12px; }
+
+      /* ---------- STT debug panel ---------- */
+      .debug-panel {
+        flex: none;
+        border-top: 1px solid var(--border-soft);
+        background: var(--bg-deep);
+        padding: 8px 14px 10px;
+      }
+      .debug-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: var(--text-dim);
+        margin-bottom: 6px;
+      }
+      .debug-head button {
+        background: none;
+        border: 1px solid var(--border);
+        color: var(--text-dim);
+        border-radius: 6px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        padding: 2px 9px;
+      }
+      .debug-log {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.68rem;
+        line-height: 1.55;
+        color: var(--text-dim);
+        max-height: 150px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
 
       /* ---------- setup & modal ---------- */
       .overlay {
@@ -706,9 +750,16 @@
           <button type="button" class="ghost-btn bypass-btn hidden" id="settingsBypassBtn">Simpan tanpa memeriksa</button>
           <button type="button" class="danger-btn" id="forgetKeyBtn">Hapus semua key &amp; pengaturan dari browser ini</button>
         </form>
+          <div class="field">
+            <button type="button" class="toggle" id="debugSttToggle" aria-pressed="false">
+              <span class="track"></span> Mode debug STT
+            </button>
+            <p class="hint">Saat aktif, panel log kecil muncul di bawah area obrolan dan mencatat setiap event pengenalan suara mentah dari browser (timestamp, jumlah hasil, dan isi tiap slot) — berguna untuk mendiagnosis transkrip yang berulang/duplikat. Log hanya tampil di layar dan hilang saat halaman ditutup; toggle ini langsung aktif tanpa perlu klik Simpan.</p>
+          </div>
         <p class="privacy">
           🎙️ <strong>Mode fallback “Suara AI”:</strong> kalau suara bawaan browser tidak tersedia (daftar suara kosong) atau pengenalan suara browser gagal, halaman ini otomatis memakai Gemini untuk membacakan jawaban tutor dan mentranskrip suaramu lewat tombol mic mode rekam. Mode fallback ini memakai kuota API key kamu — dan hanya aktif saat fitur suara bawaan browser tidak jalan. Fallback Suara AI selalu memakai Gemini API key di atas, apa pun Penyedia AI yang dipilih — yang mengikuti penyedia terpilih hanya percakapan teksnya.
         </p>
+        <p class="build-stamp">Versi build: v3-20261018</p>
       </div>
     </div>
 
@@ -742,6 +793,14 @@
 
       <main id="messages" aria-live="polite"></main>
 
+      <div id="debugPanel" class="debug-panel hidden">
+        <div class="debug-head">
+          <span>Log debug STT — build v3-20261018</span>
+          <button type="button" id="debugClearBtn">Bersihkan</button>
+        </div>
+        <div id="debugLog" class="debug-log" aria-label="Log debug pengenalan suara"></div>
+      </div>
+
       <div class="composer-zone">
         <div class="status-line" id="statusLine">Pilih mode, lalu tekan “Mulai sesi”.</div>
         <div class="mic-wrap">
@@ -760,6 +819,7 @@
           Otak percakapan ini adalah Google Gemini, memakai API key milikmu sendiri yang tersimpan hanya di browser ini.
           Tidak ada data yang melewati server lain — semua panggilan langsung dari browsermu ke Google.
         </p>
+        <p class="build-stamp">v3-20261018</p>
       </div>
     </div>
 
@@ -773,6 +833,8 @@
       var LS_OA_URL = "evc.oaBaseUrl";
       var LS_OA_KEY = "evc.oaApiKey";
       var LS_OA_MODEL = "evc.oaModel";
+      var LS_DEBUG = "evc.debugStt";
+      var BUILD_VERSION = "v3-20261018";
       var SILENCE_MS = 1200;
       var MAX_TURNS = 20;
 
@@ -836,7 +898,8 @@
         ttsFallback: false,      // local voices empty/broken -> Gemini TTS
         sttFallback: false,      // SpeechRecognition unusable -> record + Gemini transcription
         recording: false,        // MediaRecorder capture in progress (STT fallback)
-        transcribing: false     // waiting for Gemini transcription (STT fallback)
+        transcribing: false,    // waiting for Gemini transcription (STT fallback)
+        debugStt: false         // raw speech-recognition event log panel visible
       };
 
       /* ================= dom refs ================= */
@@ -858,6 +921,7 @@
           state.oaBaseUrl = localStorage.getItem(LS_OA_URL) || "";
           state.oaApiKey = localStorage.getItem(LS_OA_KEY) || "";
           state.oaModel = localStorage.getItem(LS_OA_MODEL) || "";
+          state.debugStt = localStorage.getItem(LS_DEBUG) === "1";
         } catch (e) { /* storage unavailable: session-only */ }
       }
       function saveSettings() {
@@ -878,12 +942,14 @@
           localStorage.removeItem(LS_OA_URL);
           localStorage.removeItem(LS_OA_KEY);
           localStorage.removeItem(LS_OA_MODEL);
+          localStorage.removeItem(LS_DEBUG);
         } catch (e) { /* ignore */ }
         state.apiKey = "";
         state.provider = "gemini";
         state.oaBaseUrl = "";
         state.oaApiKey = "";
         state.oaModel = "";
+        state.debugStt = false;
       }
       /* The app is usable when the selected chat provider is configured.
          The Gemini key stays optional under the OpenAI provider — it only
@@ -1482,98 +1548,81 @@
         window.speechSynthesis.speak(u);
       }
 
+      /* ================= STT debug log ================= */
+      /* Raw recognition events, shown only while "Mode debug STT" is on in
+         Pengaturan — ground truth for diagnosing transcript duplication
+         on the user's own device. In-memory only; nothing is stored. */
+      function sttLog(msg) {
+        if (!state.debugStt) return;
+        var log = $("debugLog");
+        if (!log) return;
+        var now = new Date();
+        function p2(n) { return String(n).padStart(2, "0"); }
+        var ts = p2(now.getHours()) + ":" + p2(now.getMinutes()) + ":" + p2(now.getSeconds()) +
+          "." + String(now.getMilliseconds()).padStart(3, "0");
+        var line = document.createElement("div");
+        line.textContent = ts + "  " + msg;
+        log.appendChild(line);
+        while (log.children.length > 300) log.removeChild(log.firstChild);
+        log.scrollTop = log.scrollHeight;
+      }
+      function setDebugStt(on) {
+        state.debugStt = on;
+        try { localStorage.setItem(LS_DEBUG, on ? "1" : "0"); } catch (e) { /* ignore */ }
+        $("debugPanel").classList.toggle("hidden", !on);
+        var t = $("debugSttToggle");
+        if (t) t.setAttribute("aria-pressed", on ? "true" : "false");
+        if (on) sttLog("Mode debug STT aktif — build " + BUILD_VERSION);
+      }
+
       /* ================= speech recognition ================= */
       var SR = window.SpeechRecognition || window.webkitSpeechRecognition || null;
       var recognition = null;
       var silenceTimer = null;
       var wantListen = false;
       var lastSrError = null;
-      /* Snapshot trackers for onresult: text of final results from an earlier
-         results list (only used if the browser resets its list mid-session)
-         plus the previous event's final count/text for detecting that reset. */
-      var srFinalBase = "";
-      var srLastFinalCount = 0;
-      var srLastFinalText = "";
+      /* Finals are tracked per slot index: srFinals[i] holds slot i's final
+         transcript and is OVERWRITTEN when the browser re-delivers that
+         slot — never appended to. The displayed text is rebuilt from
+         scratch on every event (finals in index order + the live interim),
+         so a re-sent event can never duplicate anything. srCommitted holds
+         text folded in from an earlier results list when the browser
+         resets its list mid-session; the prev* fields detect that reset. */
+      var srFinals = {};
+      var srCommitted = "";
+      var srPrevFinalCount = 0;
+      var srPrevListLen = 0;
+      var srPrevFinalsText = "";
       /* The exact transcript string currently shown in the composer.
          finishListening sends THIS string — never a recomposed
          final+interim — so the sent message always matches the bubble. */
       var srLiveText = "";
 
-      /* Word-level transcript merging. normWord makes comparisons immune
-         to case and edge punctuation, so a recognizer revising "sure"
-         into "Sure," is recognized as the same words, not new speech. */
+      /* normWord makes word comparisons immune to case and edge
+         punctuation, so a recognizer revising "sure" into "Sure," is
+         recognized as the same words, not new speech. */
       function normWord(w) {
         return w.toLowerCase().replace(/^[^a-z0-9']+|[^a-z0-9']+$/g, "");
       }
-      /* Append `next` to `acc`, dropping the longest run of words that
-         appears at both acc's end and next's start (an interim echoing
-         the last final, a restarted list re-delivering committed text).
-         If next adds nothing new, acc is returned unchanged. */
-      function mergeAppend(acc, next) {
-        if (!acc) return next || "";
-        if (!next) return acc;
-        var A = acc.split(/\s+/), B = next.split(/\s+/);
+      /* Join already-committed text with a newer piece, adding ONLY the
+         genuinely new part: the longest run of words shared between the
+         committed text's tail and the piece's head is dropped from the
+         piece. Used solely where two independently-built strings meet —
+         folding a reset list's finals into srCommitted, and placing the
+         live interim after the finals — never to accumulate events. */
+      function commitTail(base, add) {
+        if (!base) return add || "";
+        if (!add) return base;
+        var A = base.split(/\s+/), B = add.split(/\s+/);
         var maxK = Math.min(A.length, B.length);
         for (var k = maxK; k > 0; k--) {
           var ok = true;
           for (var i = 0; i < k; i++) {
             if (normWord(A[A.length - k + i]) !== normWord(B[i])) { ok = false; break; }
           }
-          if (ok) return A.concat(B.slice(k)).join(" ");
+          if (ok) return k === B.length ? base : A.concat(B.slice(k)).join(" ");
         }
-        return acc + " " + next;
-      }
-      /* Combine committed text (base) with a fresh list snapshot. A
-         restarted list that re-delivers old speech yields a snapshot
-         that is a word-prefix of the base (or vice versa once it grows
-         past it) — both cases must resolve to the longer text, never to
-         base + snapshot. Anything else is genuinely new speech and is
-         appended with overlap dropped. */
-      function mergeSnapshot(base, snap) {
-        if (!base) return snap || "";
-        if (!snap) return base;
-        var A = base.split(/\s+/), B = snap.split(/\s+/);
-        var n = Math.min(A.length, B.length), i, prefix = true;
-        for (i = 0; i < n; i++) {
-          if (normWord(A[i]) !== normWord(B[i])) { prefix = false; break; }
-        }
-        if (prefix) return A.length >= B.length ? base : snap;
-        return mergeAppend(base, snap);
-      }
-      /* Detect a results-list restart that does NOT shrink the list: the
-         new finals open with a different word and share no word at all
-         with the previous snapshot (a revision keeps most words — e.g. a
-         corrected first word — so shared vocabulary means revision, and
-         the snapshot simply replaces). Single-word snapshots are too
-         ambiguous to judge and are always treated as revisions. */
-      function looksLikeNewList(prev, snap) {
-        if (!prev || !snap) return false;
-        var A = prev.split(/\s+/), B = snap.split(/\s+/);
-        if (A.length < 2) return false;
-        if (normWord(A[0]) === normWord(B[0])) return false;
-        var seen = {}, i;
-        for (i = 0; i < A.length; i++) seen[normWord(A[i])] = true;
-        for (i = 0; i < B.length; i++) if (seen[normWord(B[i])]) return false;
-        return true;
-      }
-      /* Merge one final-result slot into the accumulated finals. With
-         continuous=true, Chrome on Android makes each slot's transcript
-         CUMULATIVE — the whole session text so far — so plain joining
-         repeats every prefix ("sure sure today sure today I know…").
-         A slot that merely extends everything accumulated so far IS
-         the new accumulated text, not an addition to it. */
-      function mergeCumulative(acc, next) {
-        if (!acc) return next || "";
-        if (!next) return acc;
-        var A = acc.split(/\s+/), B = next.split(/\s+/);
-        if (B.length > A.length) {
-          var all = true;
-          for (var i = 0; i < A.length; i++) {
-            if (normWord(A[i]) !== normWord(B[i])) { all = false; break; }
-          }
-          if (all) return next;
-        }
-        return acc + " " + next;
+        return base + " " + add;
       }
 
       function clearSilenceTimer() {
@@ -1589,10 +1638,13 @@
         stopSpeaking();
         state.finalTranscript = "";
         state.interimTranscript = "";
-        srFinalBase = "";
-        srLastFinalCount = 0;
-        srLastFinalText = "";
+        srFinals = {};
+        srCommitted = "";
+        srPrevFinalCount = 0;
+        srPrevListLen = 0;
+        srPrevFinalsText = "";
         srLiveText = "";
+        sttLog("path: SpeechRecognition (continuous, lang=en-US)");
         try {
           recognition = new SR();
         } catch (e) {
@@ -1607,50 +1659,62 @@
         lastSrError = null;
         recognition.onresult = function (ev) {
           lastSrError = null;
-          /* Rebuild the transcript as an absolute snapshot of ev.results on
-             every event — never append deltas (re-delivered events used to
-             count each segment many times: "currentlycurrentlycurrently…").
-             Slots are MERGED, not plain-joined, because of two more
-             Android Chrome behaviors: final slots can carry cumulative
-             transcripts (mergeCumulative), and the interim slot often
-             echoes the last final before continuing (mergeAppend drops
-             the overlap when final and interim are combined). The result
-             is stored in srLiveText, the exact string finishListening
-             sends — display and send can never diverge. */
-          var snapFinal = "", interimParts = [], finalCount = 0;
-          for (var i = 0; i < ev.results.length; i++) {
-            var r = ev.results[i];
-            var t = ((r[0] && r[0].transcript) || "").trim();
-            if (r.isFinal) {
-              finalCount++;
-              if (t) snapFinal = mergeCumulative(snapFinal, t);
-            } else if (t) {
-              interimParts.push(t);
+          /* Debug first: log the RAW event before any processing, so a
+             screenshot of this panel shows exactly what the browser sent. */
+          if (state.debugStt) {
+            var dbg = [];
+            for (var d = 0; d < ev.results.length; d++) {
+              var dr = ev.results[d];
+              var dt = ((dr[0] && dr[0].transcript) || "").trim();
+              dbg.push("[" + d + "]" + (dr.isFinal ? "F" : "I") + " \"" + dt.slice(0, 40) + "\"");
             }
+            sttLog("result len=" + ev.results.length + " ri=" + ev.resultIndex + " | " + dbg.join(" | "));
           }
-          var snapInterim = interimParts.join(" ");
-          if (finalCount < srLastFinalCount ||
-              (finalCount === srLastFinalCount && looksLikeNewList(srLastFinalText, snapFinal))) {
-            /* The results list restarted mid-session (it shrank, or its
-               finals are a wholly unrelated sentence at the same length):
-               commit the previous snapshot's finals into the base —
-               merged, so speech the new list re-delivers is not counted
-               twice — and let the new snapshot replace, never add to, its
-               own slots (a revised final corrects the text, it does not
-               duplicate it). */
-            srFinalBase = mergeSnapshot(srFinalBase, srLastFinalText);
+          /* Standard continuous-recognition accumulation: finals live in
+             srFinals keyed by slot index and are overwritten on
+             re-delivery; the interim is whatever the non-final slots hold
+             right now; the displayed text is rebuilt from those two on
+             every event. No event ever appends to a previous event's
+             string, so nothing can be counted twice. */
+          var finalCount = 0, i, r, t;
+          for (i = 0; i < ev.results.length; i++) {
+            if (ev.results[i].isFinal) finalCount++;
           }
-          srLastFinalCount = finalCount;
-          srLastFinalText = snapFinal;
-          state.finalTranscript = mergeSnapshot(srFinalBase, snapFinal);
-          state.interimTranscript = snapInterim;
-          srLiveText = mergeAppend(state.finalTranscript, snapInterim);
+          if (srPrevListLen > 0 && (ev.results.length < srPrevListLen || finalCount < srPrevFinalCount)) {
+            /* The browser reset its results list mid-session (the list
+               shrank, or it now holds fewer finals than before): fold the
+               previous list's finals into srCommitted — adding only text
+               that is not already the committed tail — and start the
+               per-slot map over for the new list. */
+            srCommitted = commitTail(srCommitted, srPrevFinalsText);
+            srFinals = {};
+            sttLog("results-list RESET terdeteksi — finals sebelumnya di-commit ke base");
+          }
+          var interimText = "";
+          for (i = 0; i < ev.results.length; i++) {
+            r = ev.results[i];
+            t = ((r[0] && r[0].transcript) || "").trim();
+            if (r.isFinal) { if (t) srFinals[i] = t; }
+            else if (t) interimText = interimText ? interimText + " " + t : t;
+          }
+          var finalsText = "";
+          var keys = Object.keys(srFinals).sort(function (a, b) { return a - b; });
+          for (i = 0; i < keys.length; i++) {
+            finalsText = finalsText ? finalsText + " " + srFinals[keys[i]] : srFinals[keys[i]];
+          }
+          srPrevFinalCount = finalCount;
+          srPrevListLen = ev.results.length;
+          srPrevFinalsText = finalsText;
+          state.finalTranscript = commitTail(srCommitted, finalsText);
+          state.interimTranscript = interimText;
+          srLiveText = commitTail(state.finalTranscript, interimText);
           textInput.value = srLiveText;
           sendBtn.disabled = !srLiveText;
           armSilenceTimer();
         };
         recognition.onerror = function (ev) {
           lastSrError = ev.error || "unknown";
+          sttLog("SR error: " + lastSrError);
           if (ev.error === "not-allowed" || ev.error === "service-not-allowed") {
             wantListen = false;
             state.listening = false;
@@ -1709,12 +1773,14 @@
         /* Send the exact string that was displayed in the composer —
            srLiveText — never a fresh final+interim recomposition, which
            could re-add an interim that echoes the final text. */
-        var text = srLiveText.trim() || mergeAppend(state.finalTranscript, state.interimTranscript) || textInput.value.trim();
+        var text = srLiveText.trim() || commitTail(state.finalTranscript, state.interimTranscript) || textInput.value.trim();
         state.finalTranscript = "";
         state.interimTranscript = "";
-        srFinalBase = "";
-        srLastFinalCount = 0;
-        srLastFinalText = "";
+        srFinals = {};
+        srCommitted = "";
+        srPrevFinalCount = 0;
+        srPrevListLen = 0;
+        srPrevFinalsText = "";
         srLiveText = "";
         refreshControls();
         if (shouldSend && text) {
@@ -1794,6 +1860,7 @@
         mediaRecorder.start();
         recStarting = false;
         state.recording = true;
+        sttLog("path: MediaRecorder (fallback Suara AI), mime=" + session.mimeType);
         refreshControls();
       }
       function stopRecording() {
@@ -1845,6 +1912,7 @@
           if (chunks[chunks.length - 1].size >= prevBytes) chunks = [chunks[chunks.length - 1]];
         }
         var blob = new Blob(chunks, { type: mime });
+        sttLog("MediaRecorder stop: " + chunks.length + " chunk, total " + blob.size + " byte");
         refreshControls();
         if (!blob.size) {
           showBanner("warn", "Rekamannya kosong — coba bicara sedikit lebih lama sebelum ketuk berhenti.");
@@ -1883,6 +1951,7 @@
             for (var i = 0; i < parts.length; i++) if (parts[i].text) text += parts[i].text;
           } catch (e) { /* fall through */ }
           text = text.trim();
+          sttLog("transkrip Gemini: \"" + text.slice(0, 60) + "\"");
           state.transcribing = false;
           refreshControls();
           if (!text) {
@@ -2386,6 +2455,7 @@
         });
         $("forgetKeyBtn").addEventListener("click", function () {
           clearSettings();
+          setDebugStt(false);
           stopTimer();
           state.sessionActive = false;
           state.history = [];
@@ -2427,6 +2497,8 @@
         $("modeCasual").addEventListener("click", function () { setMode("casual"); });
         $("modeInterview").addEventListener("click", function () { setMode("interview"); });
         endSessionBtn.addEventListener("click", endSession);
+        $("debugSttToggle").addEventListener("click", function () { setDebugStt(!state.debugStt); });
+        $("debugClearBtn").addEventListener("click", function () { $("debugLog").innerHTML = ""; });
 
         $("voiceToggleBtn").addEventListener("click", function () {
           state.voiceOn = !state.voiceOn;
@@ -2452,6 +2524,7 @@
       loadSettings();
       initForms();
       initControls();
+      setDebugStt(state.debugStt);
       initVoiceDetection();
       if (isConfigured()) {
         enterApp();
