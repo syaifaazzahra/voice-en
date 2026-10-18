@@ -784,7 +784,7 @@
         <p class="privacy">
           🎙️ <strong>Mode fallback “Suara AI”:</strong> kalau suara bawaan browser tidak tersedia (daftar suara kosong) atau pengenalan suara browser gagal, halaman ini otomatis memakai Gemini untuk membacakan jawaban tutor dan mentranskrip suaramu lewat tombol mic mode rekam. Mode fallback ini memakai kuota API key kamu — dan hanya aktif saat fitur suara bawaan browser tidak jalan. Fallback Suara AI selalu memakai Gemini API key di atas, apa pun Penyedia AI yang dipilih — yang mengikuti penyedia terpilih hanya percakapan teksnya.
         </p>
-        <p class="build-stamp">Versi build: v6-20261018</p>
+        <p class="build-stamp">Versi build: v7-20261018</p>
       </div>
     </div>
 
@@ -820,7 +820,7 @@
 
       <div id="debugPanel" class="debug-panel hidden">
         <div class="debug-head">
-          <span>Log debug STT — build v6-20261018</span>
+          <span>Log debug STT — build v7-20261018</span>
           <button type="button" id="debugClearBtn">Bersihkan</button>
         </div>
         <div id="debugLog" class="debug-log" aria-label="Log debug pengenalan suara"></div>
@@ -844,7 +844,7 @@
           Otak percakapan ini adalah Google Gemini, memakai API key milikmu sendiri yang tersimpan hanya di browser ini.
           Tidak ada data yang melewati server lain — semua panggilan langsung dari browsermu ke Google.
         </p>
-        <p class="build-stamp">v6-20261018</p>
+        <p class="build-stamp">v7-20261018</p>
       </div>
     </div>
 
@@ -859,8 +859,8 @@
       var LS_OA_KEY = "evc.oaApiKey";
       var LS_OA_MODEL = "evc.oaModel";
       var LS_DEBUG = "evc.debugStt";
-      var BUILD_VERSION = "v6-20261018";
-      var SILENCE_MS = 1200;
+      var BUILD_VERSION = "v7-20261018";
+      var VAD_SILENCE_MS = 3000;
       var MAX_TURNS = 20;
 
       var CORRECTIONS_RULE = [
@@ -1285,43 +1285,73 @@
         wrap.appendChild(row);
         /* Translation is fetched at most once per bubble and cached here;
            later clicks only toggle its visibility. A failed fetch is not
-           cached, so the next click retries. */
+           cached, so the next click retries. The fetch is PREFETCHED in
+           the background as soon as the bubble appears (see the call at
+           the end of addTutorBubble), so the cache is usually already
+           warm when the learner taps the icon and the translation shows
+           instantly; a tap that lands earlier just reveals the
+           "Menerjemahkan…" state until the same request completes. */
         var translationEl = null;
         var cachedTranslation = null;
         var translationBusy = false;
-        translateBtn.addEventListener("click", function () {
-          if (translationBusy) return;
-          if (cachedTranslation) {
-            var nowHidden = translationEl.classList.toggle("hidden");
-            translateBtn.classList.toggle("on", !nowHidden);
-            if (!nowHidden) scrollToBottom();
-            return;
-          }
+        function ensureTranslationEl() {
           if (!translationEl) {
             translationEl = document.createElement("div");
+            translationEl.className = "translation hidden";
             row.after(translationEl);
           }
-          translationEl.className = "translation loading";
-          translationEl.textContent = "Menerjemahkan…";
-          translateBtn.classList.add("on");
+          return translationEl;
+        }
+        function renderTranslation() {
+          var el = ensureTranslationEl();
+          el.className = "translation";
+          el.textContent = "";
+          var lbl = document.createElement("span");
+          lbl.className = "t-label";
+          lbl.textContent = "Terjemahan";
+          el.appendChild(lbl);
+          el.appendChild(document.createTextNode(cachedTranslation));
+        }
+        function fetchTranslation() {
+          if (cachedTranslation || translationBusy) return;
           translationBusy = true;
-          scrollToBottom();
           translateText(stripInternalMarkup(cleanText)).then(function (idText) {
             cachedTranslation = idText;
             translationBusy = false;
-            translationEl.className = "translation";
-            translationEl.textContent = "";
-            var lbl = document.createElement("span");
-            lbl.className = "t-label";
-            lbl.textContent = "Terjemahan";
-            translationEl.appendChild(lbl);
-            translationEl.appendChild(document.createTextNode(idText));
-            scrollToBottom();
+            /* If the learner already tapped the icon and is looking at
+               the loading placeholder, fill it in as soon as it lands. */
+            if (translationEl && !translationEl.classList.contains("hidden")) {
+              renderTranslation();
+              scrollToBottom();
+            }
           }).catch(function () {
+            /* A failed fetch is NOT cached — the next tap retries,
+               exactly like the old on-demand behavior. */
             translationBusy = false;
-            translationEl.className = "translation error";
-            translationEl.textContent = "Gagal menerjemahkan. Ketuk ikon translate lagi untuk mencoba ulang.";
+            if (translationEl && !translationEl.classList.contains("hidden")) {
+              translationEl.className = "translation error";
+              translationEl.textContent = "Gagal menerjemahkan. Ketuk ikon translate lagi untuk mencoba ulang.";
+            }
           });
+        }
+        translateBtn.addEventListener("click", function () {
+          if (cachedTranslation) {
+            var el = ensureTranslationEl();
+            var nowHidden = el.classList.toggle("hidden");
+            translateBtn.classList.toggle("on", !nowHidden);
+            if (!nowHidden) { renderTranslation(); scrollToBottom(); }
+            return;
+          }
+          /* Not cached yet: reveal the loading state and make sure a
+             fetch is running (the background prefetch usually already
+             is, so this just waits for that same request). */
+          var el2 = ensureTranslationEl();
+          el2.classList.remove("hidden");
+          el2.className = "translation loading";
+          el2.textContent = "Menerjemahkan…";
+          translateBtn.classList.add("on");
+          scrollToBottom();
+          fetchTranslation();
         });
         if (corrections && corrections.length) {
           var card = document.createElement("div");
@@ -1359,6 +1389,10 @@
         }
         messagesEl.appendChild(wrap);
         scrollToBottom();
+        /* Prefetch: warm this bubble's translation cache in the
+           background right away, so tapping the translate icon later
+           reveals it instantly instead of waiting on the provider. */
+        fetchTranslation();
         return wrap;
       }
       var typingEl = null;
@@ -1433,7 +1467,7 @@
         stopIcon.classList.toggle("hidden", !(state.listening || state.recording));
         if (state.recording) setStatus("Merekam… ketuk untuk berhenti.", "listening");
         else if (state.transcribing) setStatus("Mentranskrip…", "");
-        else if (state.listening) setStatus("Mendengarkan… ngomong aja. Berhenti bicara ±1 detik untuk mengirim, atau ketuk mic lagi.", "listening");
+        else if (state.listening) setStatus("Mendengarkan… ngomong aja. Berhenti bicara 3 detik untuk mengirim otomatis, atau ketuk mic lagi untuk langsung mengirim.", "listening");
         else if (state.busy) setStatus("Tutor sedang berpikir…", "");
         else if (state.speaking) setStatus("Tutor sedang bicara…", "speaking");
         else if (state.sessionEnded) setStatus("Sesi berakhir. Tekan “Mulai sesi baru” untuk latihan lagi.", "");
@@ -1719,8 +1753,13 @@
       /* ================= speech recognition ================= */
       var SR = window.SpeechRecognition || window.webkitSpeechRecognition || null;
       var recognition = null;
-      var silenceTimer = null;
+      var vadTimer = null;
       var wantListen = false;
+      /* Set only when the stop is deliberate: the user tapped the mic
+         button, or the 3s silence timer completed. A browser-initiated
+         onend WITHOUT this flag means Chrome cut recognition early —
+         restart silently and keep accumulating instead of sending. */
+      var userRequestedStop = false;
       var lastSrError = null;
       /* The running final transcript for this listening session. Each
          incoming final slot is folded into it by mergeFinal() below —
@@ -1783,12 +1822,20 @@
         return commitTail(running, t);
       }
 
-      function clearSilenceTimer() {
-        if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
+      function clearVadTimer() {
+        if (vadTimer) { clearTimeout(vadTimer); vadTimer = null; }
       }
-      function armSilenceTimer() {
-        clearSilenceTimer();
-        silenceTimer = setTimeout(function () { finishListening(true); }, SILENCE_MS);
+      /* Voice-activity silence detection: armed by onspeechend, cancelled
+         by onspeechstart. Only a FULL 3 seconds of silence after the user
+         stops speaking ends the turn and auto-sends — mid-sentence
+         thinking pauses no longer cut the message off early. */
+      function armVadTimer() {
+        clearVadTimer();
+        vadTimer = setTimeout(function () {
+          vadTimer = null;
+          userRequestedStop = true;
+          finishListening(true);
+        }, VAD_SILENCE_MS);
       }
       function startListening() {
         if (state.listening || state.busy || state.sessionEnded || !state.sessionActive) return;
@@ -1798,7 +1845,15 @@
         state.interimTranscript = "";
         srRunningFinal = "";
         srLiveText = "";
+        userRequestedStop = false;
         sttLog("path: SpeechRecognition (continuous, lang=en-US)");
+        launchRecognition();
+      }
+      /* Create + start a recognition object on the CURRENT transcript
+         state. startListening() resets the transcript first; the silent
+         restart after a premature browser onend calls this directly, so
+         transcript accumulation continues where it left off. */
+      function launchRecognition() {
         try {
           recognition = new SR();
         } catch (e) {
@@ -1811,6 +1866,15 @@
         recognition.maxAlternatives = 1;
         wantListen = true;
         lastSrError = null;
+        /* Voice-activity signals drive the auto-send: speech ending arms
+           the 3s silence timer; speech (re)starting cancels it. */
+        recognition.onspeechstart = function () {
+          clearVadTimer();
+        };
+        recognition.onspeechend = function () {
+          sttLog("speechend — timer diam 3 dtk mulai");
+          armVadTimer();
+        };
         recognition.onresult = function (ev) {
           lastSrError = null;
           /* Debug first: log the RAW event before any processing, so a
@@ -1849,7 +1913,6 @@
           srLiveText = commitTail(srRunningFinal, interimText);
           textInput.value = srLiveText;
           sendBtn.disabled = !srLiveText;
-          armSilenceTimer();
         };
         recognition.onerror = function (ev) {
           lastSrError = ev.error || "unknown";
@@ -1857,40 +1920,55 @@
           if (ev.error === "not-allowed" || ev.error === "service-not-allowed") {
             wantListen = false;
             state.listening = false;
-            clearSilenceTimer();
+            clearVadTimer();
             enableSttFallback("Pengenalan suara bawaan browser gagal di browser ini (" + ev.error + "). Beralih ke mode rekam Suara AI: ketuk mic untuk merekam, ketuk lagi untuk berhenti — Gemini yang mentranskrip (memakai kuota API key kamu).");
           } else if (ev.error === "network") {
             wantListen = false;
             state.listening = false;
-            clearSilenceTimer();
+            clearVadTimer();
             enableSttFallback("Pengenalan suara bawaan browser tidak bisa menghubungi server suaranya dari browser ini. Beralih ke mode rekam Suara AI: ketuk mic untuk merekam, ketuk lagi untuk berhenti — Gemini yang mentranskrip (memakai kuota API key kamu).");
           } else if (ev.error === "audio-capture") {
             wantListen = false;
             state.listening = false;
-            clearSilenceTimer();
+            clearVadTimer();
             showBanner("error", "Mikrofon tidak ditemukan. Periksa apakah ada mic yang terhubung, lalu coba lagi.");
             refreshControls();
           }
           /* "no-speech" / "aborted": onend handles state */
         };
         recognition.onend = function () {
-          var wasWant = wantListen;
           state.listening = false;
-          if (wasWant && !state.busy) {
-            /* Browser stopped on its own (e.g. long pause handled by silence timer already,
-               or an unexpected cut-off): if we still have unsent text, send it. */
+          clearVadTimer();
+          if (userRequestedStop) {
+            /* Deliberate stop (mic tap or the 3s silence timer): send any
+               pending transcript, then rest. finishListening normally
+               detaches this handler before stopping, so this path is a
+               safety net for a stop that raced the browser's own end. */
+            wantListen = false;
             var pending = srLiveText.trim();
-            if (pending) { finishListening(true); return; }
-            /* Nothing captured but session expects listening (hands-free): restart —
-               unless recognition died with a real error (network, audio, etc.),
-               where blind restarts would spin forever. */
-            if (state.handsFree && state.sessionActive && !state.sessionEnded && !state.speaking &&
-                (!lastSrError || lastSrError === "no-speech")) {
-              setTimeout(function () { if (wantListen) startListening(); }, 350);
-            } else if (lastSrError && lastSrError !== "no-speech" && lastSrError !== "aborted") {
-              wantListen = false;
-            }
+            if (pending && !state.busy) { finishListening(true); return; }
+            refreshControls();
+            return;
           }
+          if (!wantListen || state.busy || !state.sessionActive || state.sessionEnded) {
+            /* A real error already routed us elsewhere (onerror cleared
+               wantListen), or the session moved on: do not restart. */
+            refreshControls();
+            return;
+          }
+          /* The browser ended recognition on its own — neither the user
+             nor the 3s silence timer asked for a stop. Chrome's own
+             endpointing fired during a thinking pause: restart silently
+             and KEEP accumulating into the same transcript; nothing is
+             sent until the user truly goes silent for 3 seconds, taps
+             the mic button, or the session ends. */
+          sttLog("SR onend prematur (bukan stop pengguna) — restart diam-diam, transkrip dipertahankan");
+          setTimeout(function () {
+            if (wantListen && !userRequestedStop && !state.listening && !state.busy &&
+                state.sessionActive && !state.sessionEnded) {
+              launchRecognition();
+            }
+          }, 250);
           refreshControls();
         };
         try {
@@ -1903,7 +1981,7 @@
         refreshControls();
       }
       function finishListening(shouldSend) {
-        clearSilenceTimer();
+        clearVadTimer();
         wantListen = false;
         var rec = recognition;
         recognition = null;
@@ -2610,7 +2688,7 @@
       function initControls() {
         micBtn.addEventListener("click", function () {
           if (state.recording) stopRecording();
-          else if (state.listening) finishListening(true);
+          else if (state.listening) { userRequestedStop = true; finishListening(true); }
           else startListening();
         });
         sendBtn.addEventListener("click", function () {
