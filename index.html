@@ -272,6 +272,31 @@
       .replay-btn svg { width: 15px; height: 15px; }
       .replay-btn:hover { color: var(--accent-bright); border-color: var(--accent); }
       .replay-btn.playing { color: var(--accent-bright); border-color: var(--accent); }
+      .translate-btn.on { color: var(--accent-bright); border-color: var(--accent); background: var(--surface-2); }
+      .translation {
+        background: var(--surface);
+        border: 1px solid var(--border-soft);
+        border-radius: 12px;
+        padding: 9px 13px;
+        font-size: 0.92rem;
+        font-style: italic;
+        color: var(--text-dim);
+        white-space: pre-wrap;
+        word-break: break-word;
+        max-width: 100%;
+      }
+      .translation .t-label {
+        display: block;
+        font-style: normal;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--text-faint);
+        margin-bottom: 3px;
+      }
+      .translation.loading { font-style: normal; color: var(--text-faint); }
+      .translation.error { font-style: normal; color: var(--danger-dim); border-color: #6e2a30; }
       .corrections {
         background: var(--warn-bg);
         border: 1px solid var(--warn-border);
@@ -759,7 +784,7 @@
         <p class="privacy">
           🎙️ <strong>Mode fallback “Suara AI”:</strong> kalau suara bawaan browser tidak tersedia (daftar suara kosong) atau pengenalan suara browser gagal, halaman ini otomatis memakai Gemini untuk membacakan jawaban tutor dan mentranskrip suaramu lewat tombol mic mode rekam. Mode fallback ini memakai kuota API key kamu — dan hanya aktif saat fitur suara bawaan browser tidak jalan. Fallback Suara AI selalu memakai Gemini API key di atas, apa pun Penyedia AI yang dipilih — yang mengikuti penyedia terpilih hanya percakapan teksnya.
         </p>
-        <p class="build-stamp">Versi build: v5-20261018</p>
+        <p class="build-stamp">Versi build: v6-20261018</p>
       </div>
     </div>
 
@@ -795,7 +820,7 @@
 
       <div id="debugPanel" class="debug-panel hidden">
         <div class="debug-head">
-          <span>Log debug STT — build v5-20261018</span>
+          <span>Log debug STT — build v6-20261018</span>
           <button type="button" id="debugClearBtn">Bersihkan</button>
         </div>
         <div id="debugLog" class="debug-log" aria-label="Log debug pengenalan suara"></div>
@@ -819,7 +844,7 @@
           Otak percakapan ini adalah Google Gemini, memakai API key milikmu sendiri yang tersimpan hanya di browser ini.
           Tidak ada data yang melewati server lain — semua panggilan langsung dari browsermu ke Google.
         </p>
-        <p class="build-stamp">v5-20261018</p>
+        <p class="build-stamp">v6-20261018</p>
       </div>
     </div>
 
@@ -834,7 +859,7 @@
       var LS_OA_KEY = "evc.oaApiKey";
       var LS_OA_MODEL = "evc.oaModel";
       var LS_DEBUG = "evc.debugStt";
-      var BUILD_VERSION = "v5-20261018";
+      var BUILD_VERSION = "v6-20261018";
       var SILENCE_MS = 1200;
       var MAX_TURNS = 20;
 
@@ -1127,6 +1152,55 @@
         return callGemini(extraUserText);
       }
 
+      /* ============ on-demand translation (tutor bubbles) ============
+         One standalone call per message through the ACTIVE provider's
+         existing config — no new key, no new endpoint. It never reads or
+         writes state.history, so it cannot affect the conversation context
+         or the session recap. */
+      var TRANSLATE_INSTRUCTION = "Translate the following English text into natural, easy-to-understand Bahasa Indonesia for a beginner English learner. Output ONLY the Indonesian translation — no explanations, no quotation marks, no original English text.";
+      /* Only the text the learner actually sees may be sent: strip any
+         [[...]] internal block (e.g. [[CORRECTIONS]]) and leftover markup. */
+      function stripInternalMarkup(text) {
+        return String(text || "")
+          .replace(/\[\[[\s\S]*?\]\]/g, " ")
+          .replace(/\s+/g, " ")
+          .trim();
+      }
+      async function translateText(text) {
+        if (state.provider === "openai") {
+          var res = await openaiFetch(state.oaBaseUrl, state.oaApiKey, "/chat/completions", {
+            model: state.oaModel,
+            messages: [
+              { role: "system", content: TRANSLATE_INSTRUCTION },
+              { role: "user", content: text }
+            ],
+            temperature: 0.2,
+            max_tokens: 600
+          });
+          if (!res.ok) throw new Error(openaiErrorMessage(res.status));
+          var data = await res.json();
+          var out = "";
+          try { out = String(data.choices[0].message.content || "").trim(); } catch (e) { /* fall through */ }
+          if (!out) throw new Error("empty translation");
+          return out;
+        }
+        var gres = await geminiFetch(state.model, state.apiKey, {
+          systemInstruction: { parts: [{ text: TRANSLATE_INSTRUCTION }] },
+          contents: [{ role: "user", parts: [{ text: text }] }],
+          generationConfig: { temperature: 0.2, maxOutputTokens: 600 }
+        });
+        if (!gres.ok) throw new Error(geminiErrorMessage(gres.status));
+        var gdata = await gres.json();
+        var gout = "";
+        try {
+          var parts = gdata.candidates[0].content.parts || [];
+          for (var i = 0; i < parts.length; i++) if (parts[i].text) gout += parts[i].text;
+        } catch (e) { /* fall through */ }
+        gout = gout.trim();
+        if (!gout) throw new Error("empty translation");
+        return gout;
+      }
+
       /* Split the raw model reply into clean text + corrections list */
       function parseReply(raw) {
         var corrections = [];
@@ -1169,6 +1243,9 @@
       function speakerSvg() {
         return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z" fill="currentColor" stroke="none"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>';
       }
+      function translateSvg() {
+        return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>';
+      }
       function addUserBubble(text) {
         var wrap = document.createElement("div");
         wrap.className = "msg user";
@@ -1198,7 +1275,54 @@
           speak(cleanText, replay);
         });
         row.appendChild(replay);
+        var translateBtn = document.createElement("button");
+        translateBtn.type = "button";
+        translateBtn.className = "replay-btn translate-btn";
+        translateBtn.title = "Terjemahkan ke Bahasa Indonesia";
+        translateBtn.setAttribute("aria-label", "Terjemahkan jawaban tutor ke Bahasa Indonesia");
+        translateBtn.innerHTML = translateSvg();
+        row.appendChild(translateBtn);
         wrap.appendChild(row);
+        /* Translation is fetched at most once per bubble and cached here;
+           later clicks only toggle its visibility. A failed fetch is not
+           cached, so the next click retries. */
+        var translationEl = null;
+        var cachedTranslation = null;
+        var translationBusy = false;
+        translateBtn.addEventListener("click", function () {
+          if (translationBusy) return;
+          if (cachedTranslation) {
+            var nowHidden = translationEl.classList.toggle("hidden");
+            translateBtn.classList.toggle("on", !nowHidden);
+            if (!nowHidden) scrollToBottom();
+            return;
+          }
+          if (!translationEl) {
+            translationEl = document.createElement("div");
+            row.after(translationEl);
+          }
+          translationEl.className = "translation loading";
+          translationEl.textContent = "Menerjemahkan…";
+          translateBtn.classList.add("on");
+          translationBusy = true;
+          scrollToBottom();
+          translateText(stripInternalMarkup(cleanText)).then(function (idText) {
+            cachedTranslation = idText;
+            translationBusy = false;
+            translationEl.className = "translation";
+            translationEl.textContent = "";
+            var lbl = document.createElement("span");
+            lbl.className = "t-label";
+            lbl.textContent = "Terjemahan";
+            translationEl.appendChild(lbl);
+            translationEl.appendChild(document.createTextNode(idText));
+            scrollToBottom();
+          }).catch(function () {
+            translationBusy = false;
+            translationEl.className = "translation error";
+            translationEl.textContent = "Gagal menerjemahkan. Ketuk ikon translate lagi untuk mencoba ulang.";
+          });
+        });
         if (corrections && corrections.length) {
           var card = document.createElement("div");
           card.className = "corrections";
